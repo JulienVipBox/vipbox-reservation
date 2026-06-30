@@ -1,6 +1,7 @@
 import https from "node:https";
 import type { WPPickupPoint, PickupPoint, V1ModelSlug } from "@/types";
 import { V1_MODEL_SLUGS } from "@/types";
+import { getCrmPickupPoints, matchCrmPr } from "@/lib/crm";
 
 const WP_API_BASE = "https://www.vip-box.fr/wp-json/wp/v2";
 
@@ -93,14 +94,30 @@ function normalizePickupPoint(wp: WPPickupPoint): PickupPoint {
     horaires: stripHtml(wp.horaires ?? ""),
     phone: wp.telephone ?? "",
     availableModelSlugs,
+    regionIds: wp.region ?? [],
   };
 }
 
 export async function getPickupPoints(): Promise<PickupPoint[]> {
-  const data = await getJson<WPPickupPoint[]>(
-    `${WP_API_BASE}/point_retrait?per_page=100`,
-  );
-  return data
+  const [wpData, crmPrs] = await Promise.all([
+    getJson<WPPickupPoint[]>(`${WP_API_BASE}/point_retrait?per_page=100`),
+    getCrmPickupPoints(),
+  ]);
+
+  return wpData
     .map(normalizePickupPoint)
-    .filter((pp) => !isNaN(pp.lat) && !isNaN(pp.lng));
+    .filter((pp) => !isNaN(pp.lat) && !isNaN(pp.lng))
+    .map((pp) => {
+      const crmPr = matchCrmPr(crmPrs, pp.postalCode);
+      if (!crmPr) {
+        console.warn(`[CRM] Aucun PR trouvé pour code_postal=${pp.postalCode} (${pp.name})`);
+        return pp;
+      }
+      return {
+        ...pp,
+        crmId: crmPr.ID,
+        crmChefProjetId: crmPr.commercial_id,
+        crmProgrammateurId: crmPr.programmateur_vipbox,
+      };
+    });
 }

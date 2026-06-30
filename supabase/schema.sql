@@ -27,3 +27,38 @@ create table reservations (
 alter table reservations enable row level security;
 -- Pas de policies = accès interdit pour les clés anon/authenticated
 -- Le client admin (service_role) bypass automatiquement le RLS
+
+-- ─── Table des codes promo ───────────────────────────────────────────────────
+-- À exécuter dans Supabase : SQL Editor → New query → Run
+
+create table promo_codes (
+  id                      uuid default gen_random_uuid() primary key,
+  code                    text unique not null,
+
+  -- Effet
+  discount_amount         integer not null default 0,
+  free_option_ids         text[] not null default '{}',
+
+  -- Validité (null = pas de restriction)
+  booking_valid_from      date,
+  booking_valid_until     date,
+  event_valid_from        date,
+  event_valid_until       date,
+
+  -- Ciblage géographique (null = partout)
+  allowed_pr_slugs        text[],
+  allowed_region_ids      integer[],
+
+  -- Quotas
+  max_uses                integer,
+  uses_count              integer not null default 0,
+  max_uses_per_user       integer not null default 1,
+
+  -- Ciblage email (null = pas de ciblage)
+  allowed_emails          text[],
+
+  active                  boolean not null default true,
+  created_at              timestamptz default now() not null
+);
+
+alter table promo_codes enable row level security;

@@ -11,6 +11,7 @@ export type WPPickupPoint = {
   longitude: string;
   horaires: string;
   telephone: string;
+  region: number[]; // WP taxonomy term IDs
   modeles_disponibles: Array<{
     ID: number;
     post_name: string;
@@ -40,7 +41,32 @@ export type PickupPoint = {
   horaires: string;
   phone: string;
   availableModelSlugs: V1ModelSlug[];
+  regionIds: number[]; // WP taxonomy region IDs
   distanceKm?: number;
+  // CRM serveurdms.com — enrichis côté serveur à partir du code postal
+  crmId?: number;
+  crmChefProjetId?: number;
+  crmProgrammateurId?: number;
+};
+
+// Promo code — Supabase table shape
+export type PromoCode = {
+  id: string;
+  code: string;
+  discount_amount: number;
+  free_option_ids: string[];
+  booking_valid_from: string | null;
+  booking_valid_until: string | null;
+  event_valid_from: string | null;
+  event_valid_until: string | null;
+  allowed_pr_slugs: string[] | null;
+  allowed_region_ids: number[] | null;
+  max_uses: number | null;
+  uses_count: number;
+  max_uses_per_user: number;
+  allowed_emails: string[] | null;
+  active: boolean;
+  created_at: string;
 };
 
 export type PhotoboothModel = {

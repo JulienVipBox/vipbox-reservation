@@ -133,7 +133,7 @@ Lors de la création d'un code, on doit pouvoir définir :
 ## Paiement
 
 ### ⚠️ Choix du prestataire — en attente de validation interne
-- Deux options à l'étude : **Stripe** (déjà utilisé par VIPBOX) ou **Crédit Agricole Monetico** (banque de l'entreprise)
+- Deux options à l'étude : **Stripe** (déjà utilisé par VIPBOX) ou **Crédit Agricole Up2Pay / CAWL** (banque de l'entreprise — ⚠️ pas "Monetico", qui est Crédit Mutuel/CIC)
 - Décision en cours côté client : comparaison des coûts à effectuer avant de coder l'intégration
 - Ne pas commencer l'intégration paiement avant validation de ce choix
 
@@ -144,12 +144,13 @@ Lors de la création d'un code, on doit pouvoir définir :
 - **Paiement en 2x** : Stripe ne gère pas le 2x CB nativement en France — utiliser **Alma** (provider français) comme méthode de paiement additionnelle (1-2 lignes de config, transparent pour l'utilisateur)
 - CGV à accepter à l'étape Paiement (pas au Récapitulatif)
 
-### Option B : Crédit Agricole Monetico
-- Banque de l'entreprise — potentiellement tarif négocié
+### Option B : Crédit Agricole Up2Pay (CAWL)
+- **Up2Pay** = TPE virtuel CA / **CAWL** = joint-venture Crédit Agricole + Worldline (depuis 2024) — ⚠️ "Monetico" = Crédit Mutuel/CIC, terme incorrect pour CA
+- Banque de l'entreprise — potentiellement tarif négocié (~0,8–1,2 % + 0,20 € selon formule)
 - Fonctionnement : paiement par redirection (le client quitte le tunnel, paye sur la page CA, revient sur confirmation) — expérience utilisateur moins fluide qu'un formulaire embarqué
 - Intégration développeur : plus complexe (API moins moderne, moins de ressources disponibles), pas de Payment Element natif
 - Le 2x serait à gérer différemment (probablement via un module CA ou contrat spécifique)
-- Variables d'environnement à prévoir : `CA_MONETICO_TPE`, `CA_MONETICO_KEY`, `CA_MONETICO_COMPANY` (à confirmer selon leur doc)
+- Variables d'environnement à prévoir : à confirmer selon leur documentation Up2Pay/CAWL
 
 ### Variables d'environnement Stripe (si option A retenue)
 - `STRIPE_SECRET_KEY` (côté serveur)
@@ -231,7 +232,7 @@ Deux emails sont envoyés automatiquement après confirmation du paiement :
 - Vercel pour le déploiement
 - Supabase pour la base de données (réservations, codes promo)
 - Double écriture : Supabase + CRM serveurdms.com (php-crud-api)
-- Paiement : Stripe + Alma (option A) ou Crédit Agricole Monetico (option B) — choix en attente
+- Paiement : Stripe + Alma (option A) ou Crédit Agricole Up2Pay/CAWL (option B) — choix en attente
 
 ## Notes importantes
 - Les formules ne comprennent PAS d'impressions illimitées

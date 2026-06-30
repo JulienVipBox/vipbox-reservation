@@ -3,12 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/lib/store";
-import { validatePromoCode } from "@/lib/promo";
 
 export function PromoCode() {
   const router = useRouter();
-  const { model, pickupPoint, eventDate, promoCode, applyPromoCode, clearPromoCode } =
-    useReservationStore();
+  const {
+    model,
+    pickupPoint,
+    eventDate,
+    promoCode,
+    promoEffect,
+    promoAutoApplied,
+    applyPromoCode,
+    clearPromoCode,
+  } = useReservationStore();
 
   useEffect(() => {
     if (!eventDate) router.replace("/reservation/date");
@@ -18,15 +25,26 @@ export function PromoCode() {
 
   const [input, setInput] = useState(promoCode ?? "");
   const [error, setError] = useState("");
-  const [applied, setApplied] = useState<{ code: string; description: string } | null>(
-    promoCode ? { code: promoCode, description: "" } : null,
-  );
+  const [validating, setValidating] = useState(false);
+
+  const isApplied = !!promoCode && !!promoEffect;
 
   if (!model || !pickupPoint || !eventDate) {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const promoDescription = (() => {
+    if (!promoEffect) return "";
+    const parts: string[] = [];
+    if (promoEffect.discountAmount > 0) parts.push(`−${promoEffect.discountAmount} €`);
+    if (promoEffect.freeOptionIds.length > 0)
+      parts.push(
+        `${promoEffect.freeOptionIds.length} option${promoEffect.freeOptionIds.length > 1 ? "s" : ""} offerte${promoEffect.freeOptionIds.length > 1 ? "s" : ""}`,
+      );
+    return parts.join(" + ");
+  })();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = input.trim().toUpperCase();
 
@@ -36,23 +54,29 @@ export function PromoCode() {
       return;
     }
 
-    const effect = validatePromoCode(code);
+    setValidating(true);
+    setError("");
 
-    if (!effect) {
+    const res = await fetch("/api/promo/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        eventDate,
+        prSlug: pickupPoint.slug,
+        prRegionIds: pickupPoint.regionIds,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setValidating(false);
+
+    if (!data.valid) {
       setError("Ce code promo n'est pas valide ou a expiré.");
       return;
     }
 
-    applyPromoCode(code, effect);
-
-    const parts: string[] = [];
-    if (effect.discountAmount > 0) parts.push(`−${effect.discountAmount} €`);
-    if (effect.freeOptionIds.length > 0)
-      parts.push(
-        `${effect.freeOptionIds.length} option${effect.freeOptionIds.length > 1 ? "s" : ""} offerte${effect.freeOptionIds.length > 1 ? "s" : ""}`,
-      );
-
-    setApplied({ code, description: parts.join(" + ") });
+    applyPromoCode(code, data.effect, false);
     setError("");
   };
 
@@ -63,24 +87,33 @@ export function PromoCode() {
 
   return (
     <div className="space-y-6 max-w-sm mx-auto">
-      {applied ? (
-        <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4 flex items-start justify-between gap-4">
-          <div>
-            <p className="font-semibold text-green-800">Code «&nbsp;{applied.code}&nbsp;» appliqué</p>
-            {applied.description && (
-              <p className="text-sm text-green-700 mt-0.5">{applied.description}</p>
-            )}
+      {isApplied ? (
+        <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4 space-y-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-green-800">
+                Code «&nbsp;{promoCode}&nbsp;» appliqué
+              </p>
+              {promoDescription && (
+                <p className="text-sm text-green-700 mt-0.5">{promoDescription}</p>
+              )}
+              {promoAutoApplied && (
+                <p className="text-xs text-green-600 mt-1">
+                  Appliqué automatiquement pour votre date et votre lieu
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                clearPromoCode();
+                setInput("");
+                setError("");
+              }}
+              className="text-xs text-green-600 underline hover:no-underline shrink-0 mt-0.5"
+            >
+              {promoAutoApplied ? "Saisir un autre code" : "Retirer"}
+            </button>
           </div>
-          <button
-            onClick={() => {
-              clearPromoCode();
-              setApplied(null);
-              setInput("");
-            }}
-            className="text-xs text-green-600 underline hover:no-underline shrink-0 mt-0.5"
-          >
-            Retirer
-          </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -97,9 +130,10 @@ export function PromoCode() {
             />
             <button
               type="submit"
-              className="w-full sm:w-auto rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 whitespace-nowrap"
+              disabled={validating}
+              className="w-full sm:w-auto rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50 whitespace-nowrap"
             >
-              Appliquer
+              {validating ? "Vérification…" : "Appliquer"}
             </button>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -110,14 +144,14 @@ export function PromoCode() {
         <div className="flex justify-center">
           <button
             onClick={() => router.push("/reservation/options")}
-            disabled={!applied && input.trim() !== "" && !error}
+            disabled={!isApplied && input.trim() !== "" && !error}
             className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Continuer
             <span aria-hidden>→</span>
           </button>
         </div>
-        {!applied && (
+        {!isApplied && (
           <button
             onClick={handleSkip}
             className="text-sm text-gray-400 hover:text-gray-600 hover:underline"

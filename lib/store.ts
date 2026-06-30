@@ -14,6 +14,7 @@ type ReservationStore = {
   model: PhotoboothModel | null;
   promoCode: string | null;
   promoEffect: PromoEffect | null;
+  promoAutoApplied: boolean; // true = appliqué via yield management, false = saisi manuellement
   options: Option[];
   customer: CustomerInfo | null;
   reservationId: string | null; // UUID Supabase, créé à l'arrivée sur la page Paiement
@@ -22,7 +23,7 @@ type ReservationStore = {
   setEventDate: (date: string) => void;
   setPickupPoint: (pp: PickupPoint) => void;
   setModel: (model: PhotoboothModel) => void;
-  applyPromoCode: (code: string, effect: PromoEffect | null) => void;
+  applyPromoCode: (code: string, effect: PromoEffect | null, auto?: boolean) => void;
   clearPromoCode: () => void;
   toggleOption: (option: Option) => void;
   setCustomer: (customer: CustomerInfo) => void;
@@ -37,6 +38,7 @@ const initialState = {
   model: null,
   promoCode: null,
   promoEffect: null,
+  promoAutoApplied: false,
   options: [] as Option[],
   customer: null,
   reservationId: null,
@@ -53,15 +55,16 @@ export const useReservationStore = create<ReservationStore>()(
 
       // Resetting model + promo + options when PR changes
       setPickupPoint: (pp) =>
-        set({ pickupPoint: pp, model: null, promoCode: null, promoEffect: null, options: [] }),
+        set({ pickupPoint: pp, model: null, promoCode: null, promoEffect: null, promoAutoApplied: false, options: [] }),
 
       // Resetting promo + options when model changes (free option IDs are model-specific)
       setModel: (model) =>
-        set({ model, promoCode: null, promoEffect: null, options: [] }),
+        set({ model, promoCode: null, promoEffect: null, promoAutoApplied: false, options: [] }),
 
-      applyPromoCode: (code, effect) => set({ promoCode: code, promoEffect: effect }),
+      applyPromoCode: (code, effect, auto = false) =>
+        set({ promoCode: code, promoEffect: effect, promoAutoApplied: auto }),
 
-      clearPromoCode: () => set({ promoCode: null, promoEffect: null }),
+      clearPromoCode: () => set({ promoCode: null, promoEffect: null, promoAutoApplied: false }),
 
       toggleOption: (option) => {
         const { options, promoEffect } = get();

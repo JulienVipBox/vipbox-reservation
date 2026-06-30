@@ -117,3 +117,27 @@ const OPTIONS_CATALOGUE: Record<V1ModelSlug, Option[]> = {
 export function getOptionsForModel(slug: V1ModelSlug): Option[] {
   return OPTIONS_CATALOGUE[slug] ?? [];
 }
+
+// Flat price lookup for all option IDs — used by promo yield management
+export const OPTION_PRICE_LOOKUP: Record<string, number> = Object.fromEntries(
+  (Object.values(OPTIONS_CATALOGUE) as Option[][]).flat().map((o) => [o.id, o.price]),
+);
+
+// WP region taxonomy — IDs and names (stable, matches vip-box.fr)
+export const WP_REGIONS = [
+  { id: 14, name: "Auvergne-Rhône-Alpes" },
+  { id: 15, name: "Bourgogne-Franche-Comté" },
+  { id: 16, name: "Bretagne" },
+  { id: 17, name: "Centre-Val de Loire" },
+  { id: 18, name: "Corse" },
+  { id: 19, name: "Grand Est" },
+  { id: 28, name: "Guadeloupe" },
+  { id: 20, name: "Hauts-de-France" },
+  { id: 21, name: "Île-de-France" },
+  { id: 27, name: "Martinique" },
+  { id: 22, name: "Normandie" },
+  { id: 23, name: "Nouvelle-Aquitaine" },
+  { id: 24, name: "Occitanie" },
+  { id: 25, name: "Pays de la Loire" },
+  { id: 26, name: "Provence-Alpes-Côte d'Azur" },
+] as const;
