@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 const STEPS = [
@@ -15,10 +16,19 @@ const STEPS = [
 
 export function StepIndicator() {
   const pathname = usePathname();
-
-  if (pathname === "/reservation/confirmation") return null;
+  const activeRef = useRef<HTMLLIElement>(null);
 
   const currentIndex = STEPS.findIndex((s) => s.path === pathname);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [currentIndex]);
+
+  if (pathname === "/reservation/confirmation") return null;
 
   return (
     <nav aria-label="Étapes de réservation" className="overflow-x-auto">
@@ -28,7 +38,11 @@ export function StepIndicator() {
           const isCurrent = index === currentIndex;
 
           return (
-            <li key={step.path} className="flex flex-col items-center w-16">
+            <li
+              key={step.path}
+              ref={isCurrent ? activeRef : null}
+              className="flex flex-col items-center w-16"
+            >
               <div
                 aria-current={isCurrent ? "step" : undefined}
                 className={[

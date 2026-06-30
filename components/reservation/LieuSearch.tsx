@@ -125,19 +125,19 @@ export function LieuSearch({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={handleSearch} className="flex gap-3 max-w-xl mx-auto">
+      <form onSubmit={handleSearch} className="flex flex-col gap-3 max-w-xl mx-auto sm:flex-row">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Exemple : 15 rue de la Paix, Paris"
           disabled={isSearching}
-          className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:opacity-50"
+          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:opacity-50 sm:flex-1"
         />
         <button
           type="submit"
           disabled={isSearching || !input.trim()}
-          className="rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+          className="w-full sm:w-auto rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {isSearching ? "Recherche…" : "Rechercher"}
         </button>

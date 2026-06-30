@@ -84,7 +84,7 @@ export function PromoCode() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
               value={input}
@@ -93,11 +93,11 @@ export function PromoCode() {
                 setError("");
               }}
               placeholder="Ex : SUMMER25"
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm uppercase tracking-widest focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm uppercase tracking-widest focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:flex-1"
             />
             <button
               type="submit"
-              className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 whitespace-nowrap"
+              className="w-full sm:w-auto rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 whitespace-nowrap"
             >
               Appliquer
             </button>
