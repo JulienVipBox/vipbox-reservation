@@ -8,7 +8,7 @@ const MODEL_META: Record<
   "vipbox-classic": {
     name: "VIPBOX Classic",
     description:
-      "Notre photobooth emblématique : écran tactile, imprimante intégrée, photos en quelques secondes. La valeur sûre pour tous vos événements.",
+      "Notre borne emblématique : écran tactile, imprimante intégrée, photos en quelques secondes. La valeur sûre pour tous vos événements.",
   },
   smart: {
     name: "Smart",

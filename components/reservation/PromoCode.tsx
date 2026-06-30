@@ -88,32 +88,28 @@ export function PromoCode() {
   return (
     <div className="space-y-6 max-w-sm mx-auto">
       {isApplied ? (
-        <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4 space-y-2">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-semibold text-green-800">
-                Code «&nbsp;{promoCode}&nbsp;» appliqué
-              </p>
-              {promoDescription && (
-                <p className="text-sm text-green-700 mt-0.5">{promoDescription}</p>
-              )}
-              {promoAutoApplied && (
-                <p className="text-xs text-green-600 mt-1">
-                  Appliqué automatiquement pour votre date et votre lieu
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                clearPromoCode();
-                setInput("");
-                setError("");
-              }}
-              className="text-xs text-green-600 underline hover:no-underline shrink-0 mt-0.5"
-            >
-              {promoAutoApplied ? "Saisir un autre code" : "Retirer"}
-            </button>
-          </div>
+        <div className="rounded-2xl bg-green-50 border border-green-200 px-5 py-4 text-center space-y-1.5">
+          <p className="font-semibold text-green-800">
+            Code «&nbsp;{promoCode}&nbsp;» appliqué
+          </p>
+          {promoDescription && (
+            <p className="text-sm text-green-700">{promoDescription}</p>
+          )}
+          {promoAutoApplied && (
+            <p className="text-xs text-green-600">
+              Appliqué automatiquement pour votre date et votre lieu
+            </p>
+          )}
+          <button
+            onClick={() => {
+              clearPromoCode();
+              setInput("");
+              setError("");
+            }}
+            className="block mx-auto text-xs text-green-600 underline hover:no-underline pt-0.5"
+          >
+            {promoAutoApplied ? "Saisir un autre code" : "Retirer"}
+          </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
