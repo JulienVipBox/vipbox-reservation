@@ -12,10 +12,27 @@
 - Spec complète des tables/colonnes : `GET {CRM_API_URL}/openapi` (~1,7 Mo de JSON,
   `components.schemas.read-<Table>` liste les colonnes de chaque table).
 
+## Point de départ des analyses : 1er novembre 2018
+
+Le CRM a été mis en place à cette date. Les enregistrements antérieurs sont une
+reprise de données incomplète et **déséquilibrée entre les deux tables** : les
+prestations réservées y sont mieux représentées que les demandes
+correspondantes, ce qui produit des taux de conversion incohérents (vus
+jusqu'à >300% un mois donné avant filtrage). **Toujours démarrer une analyse
+demandes/conversion au 1er novembre 2018**, jamais avant — ni sur `Prospect`
+seul (où le volume 2016-2018 est simplement trop faible pour être
+significatif), ni a fortiori sur un ratio demandes/prestations.
+
+**Années = exercices comptables**, pas calendaires : du 1er novembre au 31
+octobre, **nommés par leur année de clôture** (l'exercice du 1er nov. 2024 au
+31 oct. 2025 s'appelle "2025"). Utiliser cette convention pour toute
+agrégation annuelle sur cette base.
+
 ## Table `Prospect` — les demandes entrantes
 
-⚠️ Singulier — pas `Prospects`. ~91 200 lignes, données fiables à partir de
-**2018** (2016–2017 = montée en charge du CRM, volumétrie quasi nulle).
+⚠️ Singulier — pas `Prospects`. ~91 200 lignes au total, dont ~87 500 en
+nature MARIAGE/PRO ; se limiter aux lignes à partir du 1er nov. 2018 (voir
+ci-dessus).
 
 | Champ | Rôle |
 |---|---|
@@ -105,7 +122,15 @@ Deux approches complémentaires, utilisées ensemble dans le dashboard "Prestati
    sous-ensemble de prestations liées à leur demande d'origine. Donne un **taux
    plancher** (sous-estimé d'environ 2× par rapport au ratio macro, cohérent avec
    le taux de couverture de `id_prospect`) mais reste **comparable entre canaux**
-   tant qu'on ne compare pas sa valeur absolue au ratio macro.
+   tant qu'on ne compare pas sa valeur absolue au ratio macro. Toujours afficher le
+   **N** (nombre de demandes de l'échantillon tracé) à côté de chaque taux — un
+   canal à faible volume (ex. mariages.net côté Pro, N<15 historiquement) donne un
+   taux non significatif et doit être replié dans "Autres" plutôt que comparé aux
+   canaux à fort volume.
+3. **Premier point affichable d'une courbe de taux (moyenne mobile 12 mois)** :
+   c'est le premier mois dont toute la fenêtre glissante de 12 mois est postérieure
+   au 1er nov. 2018 — soit **octobre 2019** avec ce point de départ. Ne jamais
+   afficher un point dont la fenêtre mord sur la période de reprise de données.
 
 ## Constats déjà établis (juillet 2026)
 
@@ -113,21 +138,34 @@ Deux approches complémentaires, utilisées ensemble dans le dashboard "Prestati
 - **Impact refonte sur les demandes** : comparaison 1er juin–12 juillet 2026 vs
   période équivalente (42j) juste avant, vs 100% avant refonte (8 avril–19 mai),
   vs même période 2025 → **baisse du volume de demandes dans les trois cas**,
-  cohérente avec une tendance de fond déjà connue (pic 2022, déclin depuis)
-  plutôt qu'un effet spécifique et mesurable de la refonte. Trop tôt / pas de
-  signal positif détecté à ce stade.
-- **Tendance longue (10 ans, table `Prospect`)** : volume total de demandes en
-  pic en 2022 (~14 000/an), en déclin depuis (2025 : ~9 600). Le poids de
-  mariages.net dans le mix de sources a quasi doublé depuis 2019 pendant que le
-  formulaire du site reculait en valeur absolue.
-- **Conversion par canal (2022-2025, taux plancher)** : le formulaire du site
-  convertit ~3× mieux que mariages.net en Mariage (~16% vs ~5-7%). Côté Pro, le
-  mail direct convertit très bien (~44%), les salons très mal (~3%). La hausse
-  du poids de mariages.net dans le mix de demandes tire donc mécaniquement le
-  taux de conversion global vers le bas, indépendamment de tout effet refonte.
-- Dashboards complets (courbes mensuelles, 10 ans) : demander à Claude de
-  republier les artifacts "Demandes entrantes CRM 2016-2026" et "Prestations &
-  conversion CRM 2016-2026" si les liens ne sont plus sous la main.
+  cohérente avec une tendance de fond déjà connue (pic exercice 2022, déclin
+  depuis) plutôt qu'un effet spécifique et mesurable de la refonte. Trop tôt /
+  pas de signal positif détecté à ce stade.
+- **Tendance longue (table `Prospect`, depuis nov. 2018)** : volume de demandes
+  en pic à l'exercice 2022 (~13 700), en déclin depuis (exercice 2025 : ~9 850).
+  Le poids de mariages.net dans le mix de sources a nettement augmenté pendant
+  que le formulaire du site reculait en valeur absolue.
+- **Activité prestations (table `prestations`, depuis nov. 2018)** : même
+  tendance à la baisse, plus marquée. Total (Mariage+Pro) en pic à l'exercice
+  2023 (~4 150), puis -12% (exercice 2024), -12% (exercice 2025) — deux baisses
+  consécutives à deux chiffres, nettement visibles sur une vue par exercice
+  (la courbe mensuelle seule, très saisonnière, masque cette tendance à l'oeil).
+- **Conversion par canal (exercices 2022-2025, taux plancher)** : le formulaire
+  du site convertit ~2,9× mieux que mariages.net en Mariage (~16% vs ~5,6%).
+  Côté Pro, le mail direct convertit très bien (~44%), les salons très mal
+  (~3%) ; mariages.net y est quasi absent (N=9 sur 4 exercices) et replié dans
+  "Autres". La hausse du poids de mariages.net dans le mix de demandes tire donc
+  mécaniquement le taux de conversion global vers le bas, indépendamment de tout
+  effet refonte.
+- **Composition de "Autres"** (résidu après Formulaire site / Mariages.net /
+  Salons / Téléphone / Mail direct) : en Mariage, dominé par la valeur
+  fourre-tout `Divers` saisie par les commerciaux (~83%) ; en Pro, dominé par les
+  saisies à `Provenance` multi-valeurs (~66%). Volume faible dans les deux cas
+  (quelques centaines de demandes sur 4 exercices) — taux à interpréter avec
+  prudence.
+- Dashboards complets (courbes mensuelles + vue par exercice) : demander à
+  Claude de republier les artifacts "Demandes entrantes CRM" et "Prestations &
+  conversion CRM" si les liens ne sont plus sous la main.
 
 ## À refaire quand on y reviendra
 
