@@ -1,7 +1,7 @@
 import https from "node:https";
 import type { WPPickupPoint, PickupPoint, V1ModelSlug } from "@/types";
 import { V1_MODEL_SLUGS } from "@/types";
-import { getCrmPickupPoints, matchCrmPr } from "@/lib/crm";
+import { getCrmPickupPoints } from "@/lib/crm";
 
 const WP_API_BASE = "https://www.vip-box.fr/wp-json/wp/v2";
 
@@ -98,19 +98,49 @@ function normalizePickupPoint(wp: WPPickupPoint): PickupPoint {
   };
 }
 
+// L'API WP paginé à 100 résultats/page ; le nombre de PR a dépassé 100 sans
+// qu'on s'en aperçoive (109 au 2026-07-09), ce qui coupait silencieusement les
+// derniers de la liste (Nantes, Bordeaux, Lille, Toulouse... absents de TOUT
+// le tunnel, quelle que soit la recherche). On boucle donc sur toutes les
+// pages plutôt que de fixer un nombre plus grand, pour ne plus jamais
+// reproduire ce problème quand la liste grandira encore.
+async function getAllPickupPointPages(): Promise<WPPickupPoint[]> {
+  const all: WPPickupPoint[] = [];
+  let page = 1;
+
+  while (true) {
+    const batch = await getJson<WPPickupPoint[]>(
+      `${WP_API_BASE}/point_retrait?per_page=100&page=${page}`,
+    );
+    if (batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < 100) break;
+    page += 1;
+  }
+
+  return all;
+}
+
 export async function getPickupPoints(): Promise<PickupPoint[]> {
   const [wpData, crmPrs] = await Promise.all([
-    getJson<WPPickupPoint[]>(`${WP_API_BASE}/point_retrait?per_page=100`),
+    getAllPickupPointPages(),
     getCrmPickupPoints(),
   ]);
 
+  const crmById = new Map(crmPrs.map((pr) => [pr.ID, pr]));
+
   return wpData
-    .map(normalizePickupPoint)
-    .filter((pp) => !isNaN(pp.lat) && !isNaN(pp.lng))
-    .map((pp) => {
-      const crmPr = matchCrmPr(crmPrs, pp.postalCode);
+    .map((wp) => ({ wp, pp: normalizePickupPoint(wp) }))
+    .filter(({ pp }) => !isNaN(pp.lat) && !isNaN(pp.lng))
+    .map(({ wp, pp }) => {
+      // id_base (champ ACF) = point_retrait.ID côté CRM, lien explicite posé
+      // par Julien — remplace l'ancien rapprochement par code postal, qui
+      // pouvait pointer vers la mauvaise fiche en cas de doublon de CP (voir
+      // mémoire projet, 2026-07-16 : Bordeaux/Lille/Saint-Nazaire/Limoges).
+      const crmId = wp.id_base ? Number(wp.id_base) : null;
+      const crmPr = crmId !== null ? crmById.get(crmId) : undefined;
       if (!crmPr) {
-        console.warn(`[CRM] Aucun PR trouvé pour code_postal=${pp.postalCode} (${pp.name})`);
+        console.warn(`[CRM] Aucune fiche CRM pour id_base=${wp.id_base ?? "(vide)"} (${pp.name})`);
         return pp;
       }
       return {

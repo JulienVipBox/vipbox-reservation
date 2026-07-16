@@ -122,12 +122,12 @@ export function PromoCode() {
                 setError("");
               }}
               placeholder="Ex : SUMMER25"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm uppercase tracking-widest focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:flex-1"
+              className="w-full rounded-[5px] border border-gray-300 px-4 py-3 text-sm uppercase tracking-widest focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:flex-1"
             />
             <button
               type="submit"
               disabled={validating}
-              className="w-full sm:w-auto rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50 whitespace-nowrap"
+              className="w-full sm:w-auto rounded-[5px] bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50 whitespace-nowrap"
             >
               {validating ? "Vérification…" : "Appliquer"}
             </button>
@@ -141,7 +141,7 @@ export function PromoCode() {
           <button
             onClick={() => router.push("/reservation/options")}
             disabled={!isApplied && input.trim() !== "" && !error}
-            className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Continuer
             <span aria-hidden>→</span>

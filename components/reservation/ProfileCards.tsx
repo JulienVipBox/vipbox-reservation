@@ -12,9 +12,10 @@ export function ProfileCards() {
     router.push("/reservation/date");
   };
 
+  // Les demandes Pro sortent du tunnel : redirigées vers le formulaire de
+  // devis du site vitrine (?type=pro bypass l'étape 1 du formulaire WP).
   const handleProfessionnel = () => {
-    setClientType("professionnel");
-    router.push("/pro");
+    window.location.href = "https://www.vip-box.fr/contact/?type=pro";
   };
 
   return (

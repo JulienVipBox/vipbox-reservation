@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { WP_REGIONS } from "@/lib/models";
+
+export const metadata: Metadata = { title: "Codes promo" };
 import type { PromoCode } from "@/types";
 import { PromoToggle } from "./PromoToggle";
 

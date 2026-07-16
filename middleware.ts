@@ -19,7 +19,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // L'admin affiche des données live (CRM, réservations...) — Next.js en dev
+  // envoie "no-cache" sans "no-store", ce que certains navigateurs traitent
+  // encore comme réutilisable sur un simple F5 (un rechargement forcé
+  // fonctionne, lui). On force "no-store" pour lever toute ambiguïté.
+  const res = NextResponse.next();
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }
 
 export const config = {

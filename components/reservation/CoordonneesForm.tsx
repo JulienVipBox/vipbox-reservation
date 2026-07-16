@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/lib/store";
+import { Turnstile } from "./Turnstile";
 import type { CustomerInfo } from "@/types";
 
 type Errors = Partial<Record<keyof CustomerInfo, string>>;
@@ -22,9 +23,9 @@ function validate(d: CustomerInfo): Errors {
 }
 
 const INPUT =
-  "w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900";
+  "w-full rounded-[5px] border border-gray-300 px-4 py-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900";
 const INPUT_ERROR =
-  "w-full rounded-xl border border-red-400 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-400";
+  "w-full rounded-[5px] border border-red-400 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-400";
 
 function Field({
   label,
@@ -52,7 +53,6 @@ export function CoordonneesForm() {
     eventDate,
     options,
     promoCode,
-    promoEffect,
     customer,
     setCustomer,
     setReservationId,
@@ -77,6 +77,7 @@ export function CoordonneesForm() {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   if (!model || !pickupPoint || !eventDate) {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
@@ -101,29 +102,21 @@ export function CoordonneesForm() {
     setSaving(true);
     setSaveError("");
 
-    const discount = promoEffect?.discountAmount ?? 0;
-    const freeOptionIds = promoEffect?.freeOptionIds ?? [];
-    const optionsTotal = options.reduce((s, o) => s + o.price, 0);
-    const total = Math.max(0, model.price + optionsTotal - discount);
-
+    // Le prix, les options offertes et le total ne sont plus envoyés : le
+    // serveur les recalcule lui-même à partir de model_slug/selected_option_ids/
+    // promo_code (voir app/api/reservations/route.ts) pour ne jamais faire
+    // confiance à un montant venu du navigateur.
     const payload = {
-      status: "en_attente",
       event_date: eventDate,
       pickup_point_name: pickupPoint.name,
-      model_name: model.name,
-      model_price: model.price,
-      options:
-        options.length === 0
-          ? null
-          : options
-              .map((o) => {
-                const isFree = freeOptionIds.includes(o.id);
-                return isFree ? `${o.name} (Offert)` : `${o.name} (${o.price} €)`;
-              })
-              .join(", "),
+      pickup_point_slug: pickupPoint.slug,
+      pickup_point_full_address: pickupPoint.fullAddress ?? null,
+      pickup_point_horaires: pickupPoint.horaires ?? null,
+      pickup_point_phone: pickupPoint.phone ?? null,
+      pickup_point_region_ids: pickupPoint.regionIds,
+      model_slug: model.slug,
+      selected_option_ids: options.map((o) => o.id),
       promo_code: promoCode ?? null,
-      promo_discount: discount > 0 ? discount : null,
-      total_amount: total,
       customer_first_name: form.firstName,
       customer_last_name: form.lastName,
       customer_email: form.email,
@@ -131,6 +124,7 @@ export function CoordonneesForm() {
       customer_address: form.address,
       customer_postal_code: form.postalCode,
       customer_city: form.city,
+      turnstileToken,
     };
 
     try {
@@ -142,7 +136,7 @@ export function CoordonneesForm() {
       const data = await res.json();
 
       if (!res.ok || !data.id) {
-        setSaveError("Une erreur est survenue. Veuillez réessayer.");
+        setSaveError(data.error || "Une erreur est survenue. Veuillez réessayer.");
         setSaving(false);
         return;
       }
@@ -241,6 +235,10 @@ export function CoordonneesForm() {
         </div>
       </fieldset>
 
+      <div className="!mt-0">
+        <Turnstile onVerify={setTurnstileToken} />
+      </div>
+
       {saveError && (
         <p className="text-sm text-red-500 text-center">{saveError}</p>
       )}
@@ -249,7 +247,7 @@ export function CoordonneesForm() {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "Enregistrement…" : "Continuer"}
           {!saving && <span aria-hidden>→</span>}

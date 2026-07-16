@@ -12,12 +12,14 @@ function basicAuth() {
 // Même stratégie SSL que lib/wordpress.ts :
 // - prod (Vercel) : fetch standard, le CA system gère
 // - dev : node:https avec rejectUnauthorized: false
-function crmGet<T>(path: string): Promise<T> {
+// `fresh: true` désactive le cache 1h (utilisé pour l'admin des capacités,
+// qui doit refléter une modification immédiatement après enregistrement).
+function crmGet<T>(path: string, opts?: { fresh?: boolean }): Promise<T> {
   const url = `${CRM_BASE}${path}`;
   if (process.env.NODE_ENV === "production") {
     return fetch(url, {
       headers: { Authorization: basicAuth(), Accept: "application/json" },
-      next: { revalidate: 3600 },
+      ...(opts?.fresh ? { cache: "no-store" } : { next: { revalidate: 3600 } }),
     }).then((r) => r.json() as Promise<T>);
   }
   return new Promise((resolve, reject) => {
@@ -91,11 +93,62 @@ function crmPost(path: string, body: Record<string, unknown>): Promise<number> {
   });
 }
 
+// php-crud-api n'a pas la convention REST habituelle : PATCH y déclenche une
+// INCRÉMENTATION des champs numériques (valeur ajoutée à l'existante), et
+// PUT fait le remplacement (mise à jour partielle classique). D'où l'usage
+// de PUT ici pour un "set" — utiliser PATCH additionnerait silencieusement
+// la nouvelle valeur à l'ancienne au lieu de la remplacer.
+function crmPut(path: string, body: Record<string, unknown>): Promise<void> {
+  const url = `${CRM_BASE}${path}`;
+  const bodyStr = JSON.stringify(body);
+  if (process.env.NODE_ENV === "production") {
+    return fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: basicAuth(),
+        "Content-Type": "application/json",
+      },
+      body: bodyStr,
+    }).then((r) => {
+      if (!r.ok) throw new Error(`CRM PUT ${r.status}`);
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const { hostname, pathname } = new URL(url);
+    const req = https.request(
+      {
+        hostname,
+        path: pathname,
+        method: "PUT",
+        headers: {
+          Authorization: basicAuth(),
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(bodyStr),
+        },
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => {
+          if ((res.statusCode ?? 500) >= 400) {
+            reject(new Error(`CRM PUT ${res.statusCode}: ${Buffer.concat(chunks)}`));
+          } else {
+            resolve();
+          }
+        });
+      },
+    );
+    req.on("error", reject);
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
 // ─── Données des points de retrait CRM ────────────────────────────────────────
 
 export type CrmPickupPoint = {
   ID: number;
-  code_postal: string;
   commercial_id: number;
   programmateur_vipbox: number;
 };
@@ -104,7 +157,7 @@ export async function getCrmPickupPoints(): Promise<CrmPickupPoint[]> {
   if (!CRM_BASE || !CRM_USER || !CRM_PASS) return [];
   try {
     const data = await crmGet<{ records: CrmPickupPoint[] }>(
-      "/records/point_retrait?include=ID,code_postal,commercial_id,programmateur_vipbox&limit=300",
+      "/records/point_retrait?include=ID,commercial_id,programmateur_vipbox&limit=300",
     );
     return data.records ?? [];
   } catch (err) {
@@ -113,12 +166,44 @@ export async function getCrmPickupPoints(): Promise<CrmPickupPoint[]> {
   }
 }
 
-export function matchCrmPr(
-  crmPrs: CrmPickupPoint[],
-  postalCode: string,
-): CrmPickupPoint | undefined {
-  const clean = postalCode.trim();
-  return crmPrs.find((pr) => pr.code_postal?.trim() === clean);
+// ─── Capacités de réservation par modèle (admin) ──────────────────────────────
+// Colonnes ajoutées sur point_retrait le 2026-07 pour remplacer la valeur fixe
+// provisoire de lib/availability.ts (voir getModelCapacity()).
+
+export const CAPACITY_FIELDS = [
+  "reservation_maximum_classic",
+  "reservation_maximum_smart",
+  "reservation_maximum_360",
+] as const;
+export type CapacityField = (typeof CAPACITY_FIELDS)[number];
+
+export type CrmPickupPointCapacity = {
+  ID: number;
+  reservation_maximum_classic: number | null;
+  reservation_maximum_smart: number | null;
+  reservation_maximum_360: number | null;
+};
+
+export async function getCrmPickupPointCapacities(): Promise<CrmPickupPointCapacity[]> {
+  if (!CRM_BASE || !CRM_USER || !CRM_PASS) return [];
+  try {
+    const data = await crmGet<{ records: CrmPickupPointCapacity[] }>(
+      "/records/point_retrait?include=ID," + CAPACITY_FIELDS.join(",") + "&limit=300",
+      { fresh: true },
+    );
+    return data.records ?? [];
+  } catch (err) {
+    console.error("[CRM] getCrmPickupPointCapacities failed:", err);
+    return [];
+  }
+}
+
+export async function updateCrmPickupPointCapacity(
+  crmId: number,
+  field: CapacityField,
+  value: number,
+): Promise<void> {
+  await crmPut(`/records/point_retrait/${crmId}`, { [field]: value });
 }
 
 // ─── Mapping options ──────────────────────────────────────────────────────────
@@ -152,6 +237,23 @@ function buildOptionsAnimations(selectedOptionIds: string[]): string | null {
   // Déduplique (ex: deux options mappées au même ID CRM)
   const unique = [...new Set(ids)];
   return unique.length > 0 ? unique.join(",") : null;
+}
+
+// Valeurs confirmées par inspection directe de vraies prestations existantes
+// dans le CRM (2026-07-09, requête sur /records/prestations) : "Photobooth" et
+// "Smart" apparaissent tels quels sur des milliers d'enregistrements réels
+// (ex. commercial 669, montants cohérents avec nos tarifs), "360" de même pour
+// le Spinner. Avant ce fix, Classic et Smart étaient tous deux écrits comme
+// "Photobooth" (Smart ne remontait jamais distinctement dans le CRM).
+function getTypeAnimationChoisie(modelSlug: string): string {
+  switch (modelSlug) {
+    case "smart":
+      return "Smart";
+    case "spinner-360":
+      return "360";
+    default:
+      return "Photobooth"; // vipbox-classic
+  }
 }
 
 function getNombreTirages(modelSlug: string, selectedOptionIds: string[]): string {
@@ -242,7 +344,7 @@ export async function postToCrm(
     acompte_non_necessaire: false,
     date_reservation: now,
     animations_photos_videos: "oui",
-    type_animation_choisie: input.modelSlug === "spinner-360" ? "Spinner 360°" : "Photobooth",
+    type_animation_choisie: getTypeAnimationChoisie(input.modelSlug),
     MEP: "non_recue",
     programmateur_vip: input.programmateurId,
     statut_fond: "pas_de_fond",

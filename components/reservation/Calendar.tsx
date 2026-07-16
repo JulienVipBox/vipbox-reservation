@@ -189,7 +189,7 @@ export function Calendar() {
         <button
           onClick={handleContinue}
           disabled={!eventDate}
-          className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-[5px] bg-gray-900 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Continuer
           <span aria-hidden>→</span>

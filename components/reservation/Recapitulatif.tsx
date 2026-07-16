@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useReservationStore } from "@/lib/store";
-import { getSeasonLabel } from "@/lib/models";
+import { getSeasonLabel, getOptionsForModel } from "@/lib/models";
+import type { V1ModelSlug } from "@/types";
 
 function formatDate(iso: string): string {
   const s = new Intl.DateTimeFormat("fr-FR", {
@@ -40,7 +41,7 @@ function Section({
 
 export function Recapitulatif() {
   const router = useRouter();
-  const { eventDate, pickupPoint, model, options } = useReservationStore();
+  const { eventDate, pickupPoint, model, options, promoCode, promoEffect } = useReservationStore();
 
   useEffect(() => {
     if (!eventDate) router.replace("/reservation/date");
@@ -52,8 +53,13 @@ export function Recapitulatif() {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
   }
 
+  const freeOptionIds = promoEffect?.freeOptionIds ?? [];
+  const freeOptions = freeOptionIds.length > 0
+    ? getOptionsForModel(model.slug as V1ModelSlug).filter((o) => freeOptionIds.includes(o.id))
+    : [];
+  const discount = promoEffect?.discountAmount ?? 0;
   const optionsTotal = options.reduce((sum, o) => sum + o.price, 0);
-  const total = model.price + optionsTotal;
+  const total = Math.max(0, model.price + optionsTotal - discount);
   const season = getSeasonLabel(model.slug, eventDate);
 
   return (
@@ -83,10 +89,19 @@ export function Recapitulatif() {
       </Section>
 
       <Section title="Options" editHref="/reservation/options">
-        {options.length === 0 ? (
+        {options.length === 0 && freeOptions.length === 0 ? (
           <p className="text-sm text-gray-400">Aucune option sélectionnée</p>
         ) : (
           <ul className="space-y-2">
+            {freeOptions.map((o) => (
+              <li key={o.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 flex items-center gap-2">
+                  {o.name}
+                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">Offert</span>
+                </span>
+                <span className="font-medium text-green-600">0 €</span>
+              </li>
+            ))}
             {options.map((o) => (
               <li key={o.id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-700">{o.name}</span>
@@ -104,12 +119,24 @@ export function Recapitulatif() {
             <span>{model.name}</span>
             <span>{model.price} €</span>
           </div>
+          {freeOptions.map((o) => (
+            <div key={o.id} className="flex justify-between text-white/70">
+              <span>{o.name}</span>
+              <span>0 €</span>
+            </div>
+          ))}
           {options.map((o) => (
             <div key={o.id} className="flex justify-between text-white/70">
               <span>{o.name}</span>
               <span>{o.price} €</span>
             </div>
           ))}
+          {discount > 0 && promoCode && (
+            <div className="flex justify-between text-green-300">
+              <span>Code {promoCode}</span>
+              <span>−{discount} €</span>
+            </div>
+          )}
         </div>
         <div className="flex justify-between items-center border-t border-white/20 pt-3">
           <span className="font-semibold text-lg">Total</span>
@@ -120,7 +147,7 @@ export function Recapitulatif() {
       <div className="flex justify-center">
         <button
           onClick={() => router.push("/reservation/coordonnees")}
-          className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Continuer
           <span aria-hidden>→</span>

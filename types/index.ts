@@ -17,6 +17,9 @@ export type WPPickupPoint = {
     post_name: string;
     post_title: string;
   }>;
+  // Lien explicite vers point_retrait.ID côté CRM (remplace le rapprochement
+  // par code postal, non fiable — voir lib/wordpress.ts)
+  id_base: string | null;
 };
 
 // V1 model slugs — source of truth

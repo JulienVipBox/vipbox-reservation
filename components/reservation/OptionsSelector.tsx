@@ -187,7 +187,7 @@ export function OptionsSelector() {
       <div className="flex justify-center">
         <button
           onClick={() => router.push("/reservation/recapitulatif")}
-          className="inline-flex items-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
+          className="inline-flex items-center gap-2 rounded-[5px] bg-brand px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
         >
           Continuer
           <span aria-hidden>→</span>

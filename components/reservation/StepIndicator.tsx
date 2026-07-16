@@ -28,7 +28,15 @@ export function StepIndicator() {
     });
   }, [currentIndex]);
 
-  if (pathname === "/reservation/confirmation") return null;
+  if (pathname === "/reservation/confirmation")
+    return (
+      <a
+        href="https://www.vip-box.fr"
+        className="text-white/70 hover:text-white text-sm transition-colors"
+      >
+        Retour sur vip-box.fr
+      </a>
+    );
 
   return (
     <nav aria-label="Étapes de réservation" className="overflow-x-auto">

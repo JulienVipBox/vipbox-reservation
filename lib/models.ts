@@ -57,6 +57,10 @@ export function getSeasonLabel(slug: string, eventDate: string): string {
   return "Prix fixe";
 }
 
+export function getModelName(slug: string): string | null {
+  return (MODEL_META as Record<string, { name: string }>)[slug]?.name ?? null;
+}
+
 export function getAvailableModels(
   availableSlugs: string[],
   eventDate: string,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useReservationStore } from "@/lib/store";
@@ -19,12 +19,14 @@ const MODEL_IMAGES: Record<V1ModelSlug, string> = {
 function ModelCard({
   model,
   isSelected,
+  isAvailable,
   eventDate,
   discount,
   onSelect,
 }: {
   model: PhotoboothModel;
   isSelected: boolean;
+  isAvailable: boolean;
   eventDate: string;
   discount: number;
   onSelect: () => void;
@@ -34,15 +36,26 @@ function ModelCard({
 
   return (
     <button
-      onClick={onSelect}
+      onClick={isAvailable ? onSelect : undefined}
+      disabled={!isAvailable}
+      aria-disabled={!isAvailable}
       className={[
         "relative text-left rounded-2xl border-2 overflow-hidden transition-colors w-full flex flex-col",
-        isSelected ? "border-gold" : "border-gray-200 hover:border-gray-400",
+        !isAvailable
+          ? "border-gray-200 opacity-50 cursor-not-allowed grayscale"
+          : isSelected
+            ? "border-gold"
+            : "border-gray-200 hover:border-gray-400",
       ].join(" ")}
     >
-      {isSelected && (
+      {isSelected && isAvailable && (
         <span className="absolute top-3 right-3 z-10 rounded-full bg-gold px-2.5 py-0.5 text-xs font-semibold text-brand">
           ✓ Sélectionné
+        </span>
+      )}
+      {!isAvailable && (
+        <span className="absolute top-3 right-3 z-10 rounded-full bg-gray-700 px-2.5 py-0.5 text-xs font-semibold text-white">
+          Non disponible
         </span>
       )}
 
@@ -76,7 +89,9 @@ function ModelCard({
           )}
           {season && <p className="text-xs text-gray-400">{season}</p>}
         </div>
-        <span className="text-sm font-medium text-gray-400">Choisir →</span>
+        <span className="text-sm font-medium text-gray-400">
+          {isAvailable ? "Choisir →" : "Complet à cette date"}
+        </span>
       </div>
     </button>
   );
@@ -96,6 +111,32 @@ export function ModelSelector() {
   } = useReservationStore();
 
   const autoFetched = useRef(false);
+  const [availability, setAvailability] = useState<Record<string, boolean>>({});
+
+  // Blocage des disponibilités : vérifie, pour chaque modèle proposé à ce lieu
+  // et cette date, s'il reste de la capacité (voir lib/availability.ts — source
+  // de capacité provisoire en pré-prod, en attendant les colonnes CRM dédiées).
+  // Par défaut (avant réponse, ou en cas d'erreur) tout est traité comme
+  // disponible : une panne de cette vérification ne doit jamais bloquer un
+  // client réel, seulement désactiver le grisage tant qu'elle n'est pas fiable.
+  useEffect(() => {
+    if (!pickupPoint || !eventDate) return;
+    const slugs = getAvailableModels(pickupPoint.availableModelSlugs, eventDate).map(
+      (m) => m.slug,
+    );
+    if (slugs.length === 0) return;
+
+    fetch("/api/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pickupPoint, eventDate, modelSlugs: slugs }),
+    })
+      .then((r) => r.json())
+      .then((data: { availability?: Record<string, boolean> }) =>
+        setAvailability(data.availability ?? {}),
+      )
+      .catch(() => null);
+  }, [pickupPoint, eventDate]);
 
   // Yield management : applique automatiquement le meilleur code si aucun n'est déjà actif
   useEffect(() => {
@@ -165,6 +206,32 @@ export function ModelSelector() {
     );
   }
 
+  const allUnavailable = models.every((m) => availability[m.slug] === false);
+
+  if (allUnavailable) {
+    return (
+      <div className="space-y-5 text-center">
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          Tous nos modèles sont complets à ce point de retrait pour cette date.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button
+            onClick={() => router.push("/reservation/lieu")}
+            className="rounded-[5px] border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-500 transition-colors"
+          >
+            Changer de lieu
+          </button>
+          <button
+            onClick={() => router.push("/reservation/date")}
+            className="rounded-[5px] border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-500 transition-colors"
+          >
+            Changer de date
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Résumé de l'avantage promo pour le bandeau
   const promoParts: string[] = [];
   if (discount > 0) promoParts.push(`−${discount} €`);
@@ -222,6 +289,7 @@ export function ModelSelector() {
             <ModelCard
               model={m}
               isSelected={selectedModel?.slug === m.slug}
+              isAvailable={availability[m.slug] !== false}
               eventDate={eventDate}
               discount={discount}
               onSelect={() => handleSelect(m)}
