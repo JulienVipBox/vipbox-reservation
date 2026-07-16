@@ -1,6 +1,5 @@
 // SERVER-SIDE ONLY — ne jamais importer depuis un composant client
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getCrmPickupPointCapacity, type CapacityField } from "@/lib/crm";
+import { getCrmPickupPointCapacity, getCrmBookingCount, type CapacityField } from "@/lib/crm";
 import type { PickupPoint, V1ModelSlug } from "@/types";
 
 const CAPACITY_FIELD_BY_MODEL: Record<V1ModelSlug, CapacityField> = {
@@ -31,48 +30,30 @@ export async function getModelCapacity(
   return capacity[CAPACITY_FIELD_BY_MODEL[modelSlug]];
 }
 
-/**
- * Nombre de réservations déjà PAYÉES pour ce lieu + modèle + date exacte.
- * Seul `status = 'payé'` compte : une réservation `en_attente` n'a pas encore
- * immobilisé de matériel réel (design déjà décidé, voir mémoire projet).
- */
-export async function countPaidReservations(
-  pickupPointSlug: string,
-  modelSlug: string,
-  eventDate: string,
-): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from("reservations")
-    .select("*", { count: "exact", head: true })
-    .eq("pickup_point_slug", pickupPointSlug)
-    .eq("model_slug", modelSlug)
-    .eq("event_date", eventDate)
-    .eq("status", "payé");
-
-  if (error) {
-    console.error("[availability] countPaidReservations failed:", error);
-    return 0; // panne de comptage → ne pas bloquer un client réel
-  }
-
-  return count ?? 0;
-}
+export type ModelAvailability = "available" | "full" | "hidden";
 
 /**
  * Disponibilité de chaque modèle demandé, pour un lieu + une date.
- * @returns { [modelSlug]: true si disponible }
+ * - "hidden" : capacité connue et à 0 — ce modèle n'existe pas à ce PR, la
+ *   carte ne doit pas s'afficher du tout (pas juste grisée).
+ * - "full" : capacité > 0 mais atteinte pour cette date précise (comptage
+ *   réel sur `prestations`, tous canaux) — carte affichée, grisée.
+ * - "available" : réservable, ou capacité inconnue (fail open).
  */
 export async function checkModelsAvailability(
   pickupPoint: PickupPoint,
   eventDate: string,
   modelSlugs: V1ModelSlug[],
-): Promise<Record<string, boolean>> {
+): Promise<Record<string, ModelAvailability>> {
   const results = await Promise.all(
     modelSlugs.map(async (slug) => {
       const capacity = await getModelCapacity(pickupPoint, slug);
-      if (capacity === null) return [slug, true] as const; // inconnu → disponible
+      if (capacity === null) return [slug, "available"] as const;
+      if (capacity === 0) return [slug, "hidden"] as const;
 
-      const count = await countPaidReservations(pickupPoint.slug, slug, eventDate);
-      return [slug, count < capacity] as const;
+      // capacity > 0 ici, donc getModelCapacity a forcément trouvé un crmId
+      const count = await getCrmBookingCount(pickupPoint.crmId!, slug, eventDate);
+      return [slug, count < capacity ? "available" : "full"] as const;
     }),
   );
 

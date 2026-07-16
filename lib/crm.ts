@@ -218,6 +218,44 @@ export async function getCrmPickupPointCapacity(
   }
 }
 
+// Nombre de prestations CRM déjà réservées pour ce PR + modèle, dont la
+// fenêtre d'immobilisation de la machine (date_retrait → date_retour)
+// chevauche celle qu'occuperait la nouvelle réservation demandée (même
+// formule J-1/J+2 que postToCrm — voir dateRetrait()/dateRetour() ci-dessus).
+// `prestations` est LA source de vérité pour "déjà réservé" (confirmé par
+// Julien, 2026-07-16) : elle couvre tous les canaux de vente (vipboxbooking.com,
+// photoshaker.com, et le tunnel lui-même une fois postToCrm() câblé au
+// paiement) — Supabase seul, utilisé avant ce fix, ignorait tout ce qui ne
+// passe pas par ce tunnel.
+// Exclut les prestations annulées (`annulation`) et reportées (`report` —
+// un report libère la date d'origine, confirmé par Julien).
+export async function getCrmBookingCount(
+  crmId: number,
+  modelSlug: string,
+  eventDate: string,
+): Promise<number> {
+  if (!CRM_BASE || !CRM_USER || !CRM_PASS) return 0;
+  try {
+    const params = new URLSearchParams();
+    params.append("include", "id");
+    params.append("filter", `point_retrait,eq,${crmId}`);
+    params.append("filter", `type_animation_choisie,eq,${getTypeAnimationChoisie(modelSlug)}`);
+    params.append("filter", "annulation,eq,false");
+    params.append("filter", "report,eq,false");
+    params.append("filter", `date_retrait,le,${dateRetour(eventDate)}`);
+    params.append("filter", `date_retour,ge,${dateRetrait(eventDate)}`);
+
+    const data = await crmGet<{ records: { id: number }[] }>(
+      `/records/prestations?${params.toString()}`,
+      { fresh: true }, // décompte critique pour éviter le sur-booking, jamais mis en cache
+    );
+    return data.records?.length ?? 0;
+  } catch (err) {
+    console.error("[CRM] getCrmBookingCount failed:", err);
+    return 0; // panne CRM → traité comme "aucune réservation" (fail open, jamais bloquer un client réel)
+  }
+}
+
 export async function updateCrmPickupPointCapacity(
   crmId: number,
   field: CapacityField,
@@ -265,7 +303,7 @@ function buildOptionsAnimations(selectedOptionIds: string[]): string | null {
 // (ex. commercial 669, montants cohérents avec nos tarifs), "360" de même pour
 // le Spinner. Avant ce fix, Classic et Smart étaient tous deux écrits comme
 // "Photobooth" (Smart ne remontait jamais distinctement dans le CRM).
-function getTypeAnimationChoisie(modelSlug: string): string {
+export function getTypeAnimationChoisie(modelSlug: string): string {
   switch (modelSlug) {
     case "smart":
       return "Smart";
@@ -291,14 +329,14 @@ function getNombreTirages(modelSlug: string, selectedOptionIds: string[]): strin
 // ─── Dates ────────────────────────────────────────────────────────────────────
 
 // J−1 à 00:01 — jour de retrait à la PR
-function dateRetrait(eventDate: string): string {
+export function dateRetrait(eventDate: string): string {
   const d = new Date(eventDate + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().substring(0, 10) + " 00:01:00";
 }
 
 // J+2 à 23:59 — jour de retour
-function dateRetour(eventDate: string): string {
+export function dateRetour(eventDate: string): string {
   const d = new Date(eventDate + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + 2);
   return d.toISOString().substring(0, 10) + " 23:59:00";

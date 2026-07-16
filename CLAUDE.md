@@ -27,8 +27,9 @@
 
 ## API WordPress
 - URL : `https://www.vip-box.fr/wp-json/wp/v2/point_retrait?per_page=100`
-- Champs : `id`, `slug`, `title.rendered`, `adresse`, `code_postal`, `commune_reelle`, `adresse_complete`, `latitude`, `longitude` (strings → parseFloat), `horaires` (HTML → stripHtml), `telephone`, `modeles_disponibles`
+- Champs : `id`, `slug`, `title.rendered`, `adresse`, `code_postal`, `commune_reelle`, `adresse_complete`, `latitude`, `longitude` (strings → parseFloat), `horaires` (HTML → stripHtml), `telephone`, `modeles_disponibles`, `id_base`
 - `modeles_disponibles` : `[{ ID, post_name, post_title }]`
+- `id_base` : ID de la fiche `point_retrait` correspondante côté CRM (lien explicite, remplace le rapprochement par code postal — voir CONTEXT.md, section Blocage des disponibilités)
 
 ## Modèles v1 (filtrer sur ces slugs uniquement)
 - `vipbox-classic` (ID 4818) — tarif saisonnier

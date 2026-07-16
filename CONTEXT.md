@@ -145,6 +145,12 @@ Les 3 colonnes `reservation_maximum_classic`/`_smart`/`_360` ont été ajoutées
 ### Rapprochement WP ↔ CRM — via `id_base` (ACF), pas le code postal
 Le rapprochement par code postal (`matchCrmPr`) s'est révélé peu fiable : plusieurs PR CRM peuvent légitimement partager un même code postal (partenariats Zodio, PR dupliqués type "Saint-Nazaire II"), et certaines fiches CRM ont des champs `code_postal`/`ville` vides ou inversés. Remplacé par un champ ACF `id_base` sur chaque PR WP, contenant directement `point_retrait.ID` côté CRM — lien explicite et fiable, exposé via l'API REST par le mu-plugin `vipbox-api.php` (`C:\Users\Julien\OneDrive\Bureau\Claude Code\mu-plugins\vipbox-api.php`, à redéployer manuellement sur le serveur WP en cas de modification). Résolu dans `getPickupPoints()` (`lib/wordpress.ts`).
 
+### Interface admin `/admin/disponibilites`
+- Tableau éditable (un PR par ligne, une colonne par modèle) sur les 3 capacités CRM — saisie directe dans le champ, enregistrement automatique en quittant le champ (pas de bouton "Enregistrer")
+- Écrit directement dans le CRM via `updateCrmPickupPointCapacity()` (`lib/crm.ts`) — pas de duplication de données, l'interface CRM classique et cette page lisent/écrivent la même table, toujours synchro
+- Bannière d'avertissement si des PR WP n'ont pas de correspondance CRM (`id_base` vide ou invalide) — filet de sécurité pour une future fiche PR pas encore rapprochée
+- Page forcée en `dynamic = "force-dynamic"` + `middleware.ts` force `Cache-Control: no-store` sur tout `/admin/*` — nécessaire pour refléter immédiatement un changement fait côté CRM ; **en local (`next dev`) un simple F5 peut malgré tout afficher une valeur périmée** (Next.js écrase l'en-tête en dev quoi qu'on fasse, comportement propre au serveur de dev, pas au code — un rechargement forcé Ctrl+Maj+R fonctionne toujours ; en production le F5 normal suffit)
+
 ## Base de données — CRM serveurdms.com
 
 - API REST (php-crud-api) : `https://api.serveurdms.com/api.php`
@@ -152,6 +158,9 @@ Le rapprochement par code postal (`matchCrmPr`) s'est révélé peu fiable : plu
 - Credentials : `.env.local` uniquement (`CRM_API_URL`, `CRM_API_USER`, `CRM_API_PASSWORD`)
 - Schéma complet consultable via `GET /api.php/openapi` (utile pour explorer les tables/colonnes sans avoir à demander)
 - Table `prestations` (~34 000 lignes) : toutes les commandes historiques, tous canaux confondus (vipboxbooking.com, photoshaker.com, tunnel...)
+
+### ⚠️ php-crud-api : PATCH ≠ update, PATCH = incrémentation
+Contrairement à la convention REST habituelle, `PATCH /records/{table}/{id}` sur cette API **additionne** la valeur envoyée aux champs numériques existants au lieu de les remplacer. Le remplacement (mise à jour partielle classique, "set") se fait avec **PUT**. Bug rencontré et corrigé le 2026-07-16 (`crmPut()` dans `lib/crm.ts`, renommé depuis `crmPatch()`) — a corrompu silencieusement des valeurs de capacité saisies avant la correction (valeurs additionnées au lieu de remplacées). Toujours utiliser PUT pour écrire dans cette API, jamais PATCH.
 
 ### Champ `type_animation_choisie` — convention confirmée (2026-07-09)
 Trouvée par inspection directe de vraies données existantes (pas par supposition) : `"Photobooth"` = Classic, `"Smart"` = Smart, `"360"` = Spinner 360°. Le code (`lib/crm.ts`, `getTypeAnimationChoisie()`) utilise désormais ces valeurs exactes — avant ce fix, Classic et Smart étaient tous deux écrits comme `"Photobooth"`, faussant les rapports internes distinguant les modèles.

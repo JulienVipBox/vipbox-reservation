@@ -111,14 +111,18 @@ export function ModelSelector() {
   } = useReservationStore();
 
   const autoFetched = useRef(false);
-  const [availability, setAvailability] = useState<Record<string, boolean>>({});
+  const [availability, setAvailability] = useState<
+    Record<string, "available" | "full" | "hidden">
+  >({});
 
   // Blocage des disponibilités : vérifie, pour chaque modèle proposé à ce lieu
-  // et cette date, s'il reste de la capacité (voir lib/availability.ts — source
-  // de capacité provisoire en pré-prod, en attendant les colonnes CRM dédiées).
-  // Par défaut (avant réponse, ou en cas d'erreur) tout est traité comme
-  // disponible : une panne de cette vérification ne doit jamais bloquer un
-  // client réel, seulement désactiver le grisage tant qu'elle n'est pas fiable.
+  // et cette date, s'il reste de la capacité (voir lib/availability.ts —
+  // capacité + réservations réelles lues sur le CRM). "hidden" (capacité à 0)
+  // retire la carte de la liste ; "full" (complet à cette date précise) la
+  // grise. Par défaut (avant réponse, ou en cas d'erreur) tout est traité
+  // comme disponible : une panne de cette vérification ne doit jamais
+  // bloquer un client réel, seulement désactiver le filtrage/grisage tant
+  // qu'elle n'est pas fiable.
   useEffect(() => {
     if (!pickupPoint || !eventDate) return;
     const slugs = getAvailableModels(pickupPoint.availableModelSlugs, eventDate).map(
@@ -132,8 +136,9 @@ export function ModelSelector() {
       body: JSON.stringify({ pickupPoint, eventDate, modelSlugs: slugs }),
     })
       .then((r) => r.json())
-      .then((data: { availability?: Record<string, boolean> }) =>
-        setAvailability(data.availability ?? {}),
+      .then(
+        (data: { availability?: Record<string, "available" | "full" | "hidden"> }) =>
+          setAvailability(data.availability ?? {}),
       )
       .catch(() => null);
   }, [pickupPoint, eventDate]);
@@ -167,7 +172,9 @@ export function ModelSelector() {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
   }
 
-  const models = getAvailableModels(pickupPoint.availableModelSlugs, eventDate);
+  const models = getAvailableModels(pickupPoint.availableModelSlugs, eventDate).filter(
+    (m) => availability[m.slug] !== "hidden",
+  );
   const discount = promoEffect?.discountAmount ?? 0;
   const freeOptionIds = promoEffect?.freeOptionIds ?? [];
 
@@ -206,7 +213,7 @@ export function ModelSelector() {
     );
   }
 
-  const allUnavailable = models.every((m) => availability[m.slug] === false);
+  const allUnavailable = models.every((m) => availability[m.slug] === "full");
 
   if (allUnavailable) {
     return (
@@ -289,7 +296,7 @@ export function ModelSelector() {
             <ModelCard
               model={m}
               isSelected={selectedModel?.slug === m.slug}
-              isAvailable={availability[m.slug] !== false}
+              isAvailable={availability[m.slug] !== "full"}
               eventDate={eventDate}
               discount={discount}
               onSelect={() => handleSelect(m)}
