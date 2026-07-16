@@ -1,40 +1,34 @@
 // SERVER-SIDE ONLY — ne jamais importer depuis un composant client
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getCrmPickupPointCapacity, type CapacityField } from "@/lib/crm";
 import type { PickupPoint, V1ModelSlug } from "@/types";
 
-/**
- * ⚠️ SOURCE DE VÉRITÉ PROVISOIRE (pré-prod, 2026-07-XX).
- *
- * En attendant que le CRM (`point_retrait`) reçoive 3 colonnes dédiées
- * (`reservation_maximum_classic`, `reservation_maximum_smart`,
- * `reservation_maximum_360` — demande faite par Julien en interne), la
- * capacité par modèle est une valeur fixe codée ici, uniquement pour pouvoir
- * coder et tester le mécanisme de blocage avant que la vraie donnée existe.
- *
- * À REMPLACER dès que les colonnes CRM existent : lire ces 3 champs sur la
- * fiche `point_retrait` correspondant à `pickupPoint.crmId` (déjà disponible
- * sur PickupPoint, résolu par code postal dans lib/wordpress.ts), au lieu de
- * cette table fixe. Un seul endroit à changer : getModelCapacity() ci-dessous.
- */
-const PLACEHOLDER_CAPACITY: Record<V1ModelSlug, number> = {
-  "vipbox-classic": 2,
-  smart: 2,
-  "spinner-360": 1,
+const CAPACITY_FIELD_BY_MODEL: Record<V1ModelSlug, CapacityField> = {
+  "vipbox-classic": "reservation_maximum_classic",
+  smart: "reservation_maximum_smart",
+  "spinner-360": "reservation_maximum_360",
 };
 
 /**
  * Capacité (nombre d'unités réservables simultanément) d'un modèle donné à un
- * point de retrait donné. `null` = capacité inconnue → ne doit jamais bloquer
- * un client réel (même philosophie que Turnstile/rate-limit : une donnée
- * manquante ou une panne côté CRM ne doit jamais rendre le tunnel inutilisable,
- * seulement désactiver la vérification tant qu'elle n'est pas fiable).
+ * point de retrait donné, lue sur la fiche CRM correspondante (via
+ * `pickupPoint.crmId`, résolu par `id_base` dans lib/wordpress.ts). `null` =
+ * capacité inconnue (PR pas encore rapproché du CRM, fiche sans valeur, ou
+ * CRM injoignable) → ne doit jamais bloquer un client réel (même philosophie
+ * que Turnstile/rate-limit : une donnée manquante ou une panne ne doit jamais
+ * rendre le tunnel inutilisable, seulement désactiver la vérification tant
+ * qu'elle n'est pas fiable).
  */
-export function getModelCapacity(
+export async function getModelCapacity(
   pickupPoint: PickupPoint,
   modelSlug: V1ModelSlug,
-): number | null {
-  void pickupPoint; // pas encore utilisé — le sera pour lire le CRM via crmId
-  return PLACEHOLDER_CAPACITY[modelSlug] ?? null;
+): Promise<number | null> {
+  if (pickupPoint.crmId === undefined) return null;
+
+  const capacity = await getCrmPickupPointCapacity(pickupPoint.crmId);
+  if (!capacity) return null;
+
+  return capacity[CAPACITY_FIELD_BY_MODEL[modelSlug]];
 }
 
 /**
@@ -74,7 +68,7 @@ export async function checkModelsAvailability(
 ): Promise<Record<string, boolean>> {
   const results = await Promise.all(
     modelSlugs.map(async (slug) => {
-      const capacity = getModelCapacity(pickupPoint, slug);
+      const capacity = await getModelCapacity(pickupPoint, slug);
       if (capacity === null) return [slug, true] as const; // inconnu → disponible
 
       const count = await countPaidReservations(pickupPoint.slug, slug, eventDate);

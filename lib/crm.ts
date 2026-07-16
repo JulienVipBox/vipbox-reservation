@@ -166,9 +166,10 @@ export async function getCrmPickupPoints(): Promise<CrmPickupPoint[]> {
   }
 }
 
-// ─── Capacités de réservation par modèle (admin) ──────────────────────────────
-// Colonnes ajoutées sur point_retrait le 2026-07 pour remplacer la valeur fixe
-// provisoire de lib/availability.ts (voir getModelCapacity()).
+// ─── Capacités de réservation par modèle ───────────────────────────────────────
+// Colonnes ajoutées sur point_retrait le 2026-07, éditables dans
+// /admin/disponibilites et lues par lib/availability.ts (getModelCapacity())
+// pour le blocage des dispos côté tunnel.
 
 export const CAPACITY_FIELDS = [
   "reservation_maximum_classic",
@@ -195,6 +196,25 @@ export async function getCrmPickupPointCapacities(): Promise<CrmPickupPointCapac
   } catch (err) {
     console.error("[CRM] getCrmPickupPointCapacities failed:", err);
     return [];
+  }
+}
+
+// Capacité d'une seule fiche — utilisée côté tunnel (blocage des dispos).
+// Cache 1h comme le reste des lectures CRM/WP non critiques : une capacité
+// changée par Julien met jusqu'à 1h à se répercuter pour un client réel, ce
+// qui est acceptable pour cette donnée (contrairement à /admin/disponibilites,
+// qui doit refléter une modif immédiatement, d'où `fresh: true` ci-dessus).
+export async function getCrmPickupPointCapacity(
+  crmId: number,
+): Promise<CrmPickupPointCapacity | null> {
+  if (!CRM_BASE || !CRM_USER || !CRM_PASS) return null;
+  try {
+    return await crmGet<CrmPickupPointCapacity>(
+      `/records/point_retrait/${crmId}?include=ID,` + CAPACITY_FIELDS.join(","),
+    );
+  } catch (err) {
+    console.error("[CRM] getCrmPickupPointCapacity failed:", err);
+    return null;
   }
 }
 

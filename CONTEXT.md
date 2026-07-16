@@ -128,24 +128,22 @@ Le serveur ne fait confiance à **aucune donnée financière** envoyée par le n
 - `/api/test-crm`, `/api/test-email` : protégées par un garde `NODE_ENV === "production"` (renvoient 403 en prod, fonctionnent en dev)
 - `/api/test-crm`, `/api/test-email`, `/admin/test-email` : **à supprimer avant la mise en prod définitive**, cleanup pas encore fait (pas urgent, déjà sans risque actif)
 
-## Blocage des disponibilités — ⚠️ prioritaire avant lancement, en cours
+## Blocage des disponibilités — ✅ implémenté avec les vraies données CRM (2026-07-16)
 
 ### Principe
 Empêcher les doubles réservations sur une combinaison PR + modèle + date déjà confirmée (payée). Vérifié à l'**étape Modèle** (premier moment où on connaît date + PR + modèle) : carte grisée "Non disponible" si le modèle est complet à cette date/lieu ; si tous les modèles du PR sont complets, message + boutons "Changer de lieu"/"Changer de date".
 
-### Mécanisme (implémenté et testé, capacité provisoire)
-- `lib/availability.ts` : `getModelCapacity(pickupPoint, modelSlug)` renvoie la capacité (nombre d'unités réservables en même temps) ; `countPaidReservations()` compte les réservations Supabase `status='payé'` pour ce PR+modèle+date exacte ; `checkModelsAvailability()` combine les deux
+### Mécanisme
+- `lib/availability.ts` : `getModelCapacity(pickupPoint, modelSlug)` lit la capacité réelle sur la fiche CRM (`point_retrait.reservation_maximum_classic/_smart/_360`) via `pickupPoint.crmId` ; `countPaidReservations()` compte les réservations Supabase `status='payé'` pour ce PR+modèle+date exacte ; `checkModelsAvailability()` combine les deux
 - `app/api/availability/route.ts` : route serveur appelée par `ModelSelector.tsx` au chargement de l'étape
-- Philosophie "fail open" : capacité inconnue ou erreur → traité comme disponible, ne bloque jamais un client réel (même principe que Turnstile/rate-limit)
+- Philosophie "fail open" : capacité inconnue (PR non rapproché du CRM, fiche sans valeur) ou erreur CRM → traité comme disponible, ne bloque jamais un client réel (même principe que Turnstile/rate-limit)
+- Cache CRM 1h pour cette lecture (`getCrmPickupPointCapacity()` dans `lib/crm.ts`) — une capacité modifiée par Julien met jusqu'à 1h à se répercuter côté tunnel, acceptable pour cette donnée
 
-### ⚠️ Source de capacité — provisoire, à remplacer
-`getModelCapacity()` renvoie actuellement une **valeur fixe codée en dur** (Classic=2, Smart=2, Spinner=1, identique partout), uniquement pour permettre de coder/tester le mécanisme en pré-prod. Les champs CRM existants (`point_retrait.stock_theorique`, `stock_maximum`) ont été explicitement écartés — ni l'un ni l'autre ne représente le nombre d'unités réservables simultanément.
+### Source de capacité — colonnes CRM réelles
+Les 3 colonnes `reservation_maximum_classic`/`_smart`/`_360` ont été ajoutées par Joris sur `point_retrait` (type `integer`) et sont éditables dans `/admin/disponibilites`. Les champs CRM `stock_theorique`/`stock_maximum` restent explicitement écartés (ne représentent pas la capacité de réservation simultanée).
 
-**Demande en cours auprès de Joris (urgente, délai incertain)** : ajouter 3 nouvelles colonnes sur `point_retrait` côté CRM, une par modèle (ex. `reservation_maximum_classic`/`_smart`/`_360`) — 3 colonnes et non 1 globale, car environ 1% des PR proposent plusieurs modèles à la fois (champ `materiel` avec virgule, ex. `"vipbox_classic,smart"`), donc une capacité par modèle est nécessaire pour ces cas.
-
-**Remplacement à faire dès que ces colonnes existent** : un seul endroit à modifier, `getModelCapacity()` dans `lib/availability.ts` — lire les 3 champs sur la fiche `point_retrait` correspondant à `pickupPoint.crmId` (déjà résolu par code postal dans `lib/wordpress.ts`) au lieu de la table fixe actuelle.
-
-**Limite connue de l'accès CRM** : les credentials (`CRM_API_URL`/`USER`/`PASSWORD`) passent uniquement par l'API REST php-crud-api (lecture/écriture de lignes) — aucune fonction de modification de schéma, pas d'accès SQL direct. L'ajout des colonnes doit passer par le contact CRM habituel (Joris), pas par le code.
+### Rapprochement WP ↔ CRM — via `id_base` (ACF), pas le code postal
+Le rapprochement par code postal (`matchCrmPr`) s'est révélé peu fiable : plusieurs PR CRM peuvent légitimement partager un même code postal (partenariats Zodio, PR dupliqués type "Saint-Nazaire II"), et certaines fiches CRM ont des champs `code_postal`/`ville` vides ou inversés. Remplacé par un champ ACF `id_base` sur chaque PR WP, contenant directement `point_retrait.ID` côté CRM — lien explicite et fiable, exposé via l'API REST par le mu-plugin `vipbox-api.php` (`C:\Users\Julien\OneDrive\Bureau\Claude Code\mu-plugins\vipbox-api.php`, à redéployer manuellement sur le serveur WP en cas de modification). Résolu dans `getPickupPoints()` (`lib/wordpress.ts`).
 
 ## Base de données — CRM serveurdms.com
 
