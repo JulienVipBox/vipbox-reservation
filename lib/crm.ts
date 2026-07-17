@@ -234,6 +234,18 @@ function isPlausibleCrmDate(value: string | null): boolean {
   return !!value && parseInt(value.slice(0, 4), 10) >= 2020;
 }
 
+// `type_animation_choisie` peut contenir plusieurs animations combinées sur
+// une seule prestation (ex. "360,Photobooth" pour un client ayant réservé
+// les deux) — trouvé en audit le 2026-07-17 (12 prestations 2026+ dans ce
+// cas). Un filtre d'égalité stricte les ignorait complètement, ce qui les
+// excluait du décompte de TOUS les modèles (sous-comptage). On compare donc
+// aux valeurs individuelles séparées par virgule, jamais en sous-chaîne —
+// "Photobooth" ne doit pas matcher "Photobooth Mini", un tout autre produit.
+function matchesModelType(rawType: string | null, target: string): boolean {
+  if (!rawType) return false;
+  return rawType.split(",").map((t) => t.trim()).includes(target);
+}
+
 // Nombre de prestations CRM déjà réservées pour ce PR + modèle, dont la
 // fenêtre d'immobilisation de la machine (date_retrait → date_retour)
 // chevauche celle qu'occuperait la nouvelle réservation demandée (même
@@ -255,28 +267,39 @@ export async function getCrmBookingCount(
 ): Promise<number> {
   if (!CRM_BASE || !CRM_USER || !CRM_PASS) return 0;
   try {
+    // Pas de filtre type_animation_choisie côté requête CRM : ce champ peut
+    // contenir plusieurs valeurs combinées (voir matchesModelType ci-dessus),
+    // un filtre d'égalité côté serveur les raterait. Filtré en mémoire.
     // Filtre large sur `date` (fiable, toujours renseignée) plutôt que sur
     // date_retrait/date_retour (parfois absents ou sentinelles) — la marge
     // de 14 jours couvre largement les fenêtres réelles observées (quelques
     // jours autour de l'événement), le chevauchement précis se fait ensuite
     // en mémoire avec le fallback ci-dessus.
     const params = new URLSearchParams();
-    params.append("include", "id,date,date_retrait,date_retour");
+    params.append("include", "id,date,date_retrait,date_retour,type_animation_choisie");
     params.append("filter", `point_retrait,eq,${crmId}`);
-    params.append("filter", `type_animation_choisie,eq,${getTypeAnimationChoisie(modelSlug)}`);
     params.append("filter", "annulation,eq,false");
     params.append("filter", "report,eq,false");
     params.append("filter", `date,ge,${addDays(eventDate, -14)} 00:00:00`);
     params.append("filter", `date,le,${addDays(eventDate, 14)} 23:59:59`);
 
     const data = await crmGet<{
-      records: { id: number; date: string; date_retrait: string | null; date_retour: string | null }[];
+      records: {
+        id: number;
+        date: string;
+        date_retrait: string | null;
+        date_retour: string | null;
+        type_animation_choisie: string | null;
+      }[];
     }>(`/records/prestations?${params.toString()}`, { fresh: true }); // décompte critique, jamais mis en cache
 
+    const targetType = getTypeAnimationChoisie(modelSlug);
     const candidateRetrait = dateRetrait(eventDate);
     const candidateRetour = dateRetour(eventDate);
 
     const overlapping = (data.records ?? []).filter((r) => {
+      if (!matchesModelType(r.type_animation_choisie, targetType)) return false;
+
       const eventOnly = r.date.slice(0, 10);
       const retrait = isPlausibleCrmDate(r.date_retrait) ? r.date_retrait! : dateRetrait(eventOnly);
       const retour = isPlausibleCrmDate(r.date_retour) ? r.date_retour! : dateRetour(eventOnly);

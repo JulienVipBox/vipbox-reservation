@@ -36,18 +36,28 @@ export function StepIndicator() {
   // données dont elle a besoin. Le retour efface les choix des étapes
   // suivantes (voir resetFrom() dans lib/store.ts), jamais ceux d'avant.
   //
-  // Navigue d'abord, efface le store ensuite (via setTimeout) : plusieurs
-  // pages du tunnel ont leur propre garde-fou qui redirige si un champ dont
-  // elles dépendent disparaît (ex. ModelSelector renvoie vers /lieu si
-  // pickupPoint devient null). Si on effaçait le store avant de naviguer,
-  // ce garde-fou se déclenchait sur la page qu'on est en train de quitter et
-  // gagnait la course contre notre propre navigation — on atterrissait alors
-  // sur l'étape suivant celle réellement cliquée. Le report au tick suivant
-  // laisse la nouvelle route s'installer (et l'ancienne page se démonter)
-  // avant de toucher au store.
+  // Le nettoyage du store attend une confirmation réelle que la navigation a
+  // eu lieu (le `pathname` a effectivement changé), pas un délai arbitraire :
+  // plusieurs pages du tunnel ont leur propre garde-fou qui redirige si un
+  // champ dont elles dépendent disparaît (ex. ModelSelector renvoie vers
+  // /lieu si pickupPoint devient null). Effacer le store *avant* que la page
+  // qu'on quitte ait fini de se démonter faisait réagir ce garde-fou en
+  // premier, qui gagnait alors la course contre notre propre navigation — un
+  // simple `setTimeout(0)` s'est révélé insuffisant (la transition peut
+  // prendre plus longtemps qu'un tick). On stocke donc l'étape ciblée et on
+  // n'efface qu'une fois que `pathname` confirme qu'on y est vraiment.
+  const pendingResetIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (pendingResetIndex.current !== null) {
+      resetFrom(pendingResetIndex.current);
+      pendingResetIndex.current = null;
+    }
+  }, [pathname, resetFrom]);
+
   const goToStep = (index: number, path: string) => {
+    pendingResetIndex.current = index;
     router.push(path);
-    setTimeout(() => resetFrom(index), 0);
   };
 
   if (pathname === "/reservation/confirmation")
