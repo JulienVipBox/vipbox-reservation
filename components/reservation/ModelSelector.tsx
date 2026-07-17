@@ -55,7 +55,7 @@ function ModelCard({
       )}
       {!isAvailable && (
         <span className="absolute top-3 right-3 z-10 rounded-full bg-gray-700 px-2.5 py-0.5 text-xs font-semibold text-white">
-          Non disponible
+          Non disponible à cette date
         </span>
       )}
 
@@ -89,9 +89,9 @@ function ModelCard({
           )}
           {season && <p className="text-xs text-gray-400">{season}</p>}
         </div>
-        <span className="text-sm font-medium text-gray-400">
-          {isAvailable ? "Choisir →" : "Complet à cette date"}
-        </span>
+        {isAvailable && (
+          <span className="text-sm font-medium text-gray-400">Choisir →</span>
+        )}
       </div>
     </button>
   );
