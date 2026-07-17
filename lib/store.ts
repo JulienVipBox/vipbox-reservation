@@ -29,6 +29,12 @@ type ReservationStore = {
   setCustomer: (customer: CustomerInfo) => void;
   setReservationId: (id: string) => void;
   reset: () => void;
+  // Retour à une étape antérieure (clic sur l'en-tête d'étapes) : efface les
+  // choix des étapes suivantes, jamais ceux des étapes précédentes ou de
+  // l'étape ciblée elle-même. `stepIndex` = index de l'étape vers laquelle on
+  // navigue (0 = Date, 1 = Lieu, 2 = Modèle, 3 = Promo, 4 = Options,
+  // 5 = Récap, 6 = Contact, 7 = Paiement — voir STEPS dans StepIndicator.tsx).
+  resetFrom: (stepIndex: number) => void;
 };
 
 const initialState = {
@@ -83,6 +89,21 @@ export const useReservationStore = create<ReservationStore>()(
       setReservationId: (id) => set({ reservationId: id }),
 
       reset: () => set(initialState),
+
+      resetFrom: (stepIndex) => {
+        const updates: Partial<ReservationStore> = {};
+        if (stepIndex < 1) updates.pickupPoint = null;
+        if (stepIndex < 2) updates.model = null;
+        if (stepIndex < 3) {
+          updates.promoCode = null;
+          updates.promoEffect = null;
+          updates.promoAutoApplied = false;
+        }
+        if (stepIndex < 4) updates.options = [];
+        if (stepIndex < 6) updates.customer = null;
+        if (stepIndex < 7) updates.reservationId = null;
+        set(updates);
+      },
     }),
     {
       name: "vipbox-reservation",
