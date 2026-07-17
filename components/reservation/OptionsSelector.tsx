@@ -63,7 +63,7 @@ export function OptionsSelector() {
       </p>
 
       {promoCode && (
-        <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-800">
+        <div className="inline-block rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-800">
           Code promo <strong>{promoCode}</strong> appliqué
           {discount > 0 && <> — remise de {discount} €</>}
         </div>

@@ -218,10 +218,29 @@ export async function getCrmPickupPointCapacity(
   }
 }
 
+function addDays(dateIso: string, days: number): string {
+  const d = new Date(dateIso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().substring(0, 10);
+}
+
+// De vraies prestations ont un date_retrait/date_retour vide en base, rempli
+// par le CRM avec une date sentinelle "1999-01-01" plutôt qu'un vrai NULL —
+// rencontré en prod le 2026-07-17 (2 prestations Lille fin août comptées à
+// tort contre le 1er août, leur fenêtre sentinelle allant de 1999 à leur
+// date_retour réelle, chevauchant n'importe quelle date demandée). Une
+// date antérieure à 2020 est donc traitée comme "non renseignée".
+function isPlausibleCrmDate(value: string | null): boolean {
+  return !!value && parseInt(value.slice(0, 4), 10) >= 2020;
+}
+
 // Nombre de prestations CRM déjà réservées pour ce PR + modèle, dont la
 // fenêtre d'immobilisation de la machine (date_retrait → date_retour)
 // chevauche celle qu'occuperait la nouvelle réservation demandée (même
 // formule J-1/J+2 que postToCrm — voir dateRetrait()/dateRetour() ci-dessus).
+// Si date_retrait/date_retour ne sont pas des dates plausibles sur une
+// prestation existante, on retombe sur la même formule J-1/J+2 appliquée à
+// son propre `date`, plutôt que de faire confiance à une valeur non fiable.
 // `prestations` est LA source de vérité pour "déjà réservé" (confirmé par
 // Julien, 2026-07-16) : elle couvre tous les canaux de vente (vipboxbooking.com,
 // photoshaker.com, et le tunnel lui-même une fois postToCrm() câblé au
@@ -236,20 +255,35 @@ export async function getCrmBookingCount(
 ): Promise<number> {
   if (!CRM_BASE || !CRM_USER || !CRM_PASS) return 0;
   try {
+    // Filtre large sur `date` (fiable, toujours renseignée) plutôt que sur
+    // date_retrait/date_retour (parfois absents ou sentinelles) — la marge
+    // de 14 jours couvre largement les fenêtres réelles observées (quelques
+    // jours autour de l'événement), le chevauchement précis se fait ensuite
+    // en mémoire avec le fallback ci-dessus.
     const params = new URLSearchParams();
-    params.append("include", "id");
+    params.append("include", "id,date,date_retrait,date_retour");
     params.append("filter", `point_retrait,eq,${crmId}`);
     params.append("filter", `type_animation_choisie,eq,${getTypeAnimationChoisie(modelSlug)}`);
     params.append("filter", "annulation,eq,false");
     params.append("filter", "report,eq,false");
-    params.append("filter", `date_retrait,le,${dateRetour(eventDate)}`);
-    params.append("filter", `date_retour,ge,${dateRetrait(eventDate)}`);
+    params.append("filter", `date,ge,${addDays(eventDate, -14)} 00:00:00`);
+    params.append("filter", `date,le,${addDays(eventDate, 14)} 23:59:59`);
 
-    const data = await crmGet<{ records: { id: number }[] }>(
-      `/records/prestations?${params.toString()}`,
-      { fresh: true }, // décompte critique pour éviter le sur-booking, jamais mis en cache
-    );
-    return data.records?.length ?? 0;
+    const data = await crmGet<{
+      records: { id: number; date: string; date_retrait: string | null; date_retour: string | null }[];
+    }>(`/records/prestations?${params.toString()}`, { fresh: true }); // décompte critique, jamais mis en cache
+
+    const candidateRetrait = dateRetrait(eventDate);
+    const candidateRetour = dateRetour(eventDate);
+
+    const overlapping = (data.records ?? []).filter((r) => {
+      const eventOnly = r.date.slice(0, 10);
+      const retrait = isPlausibleCrmDate(r.date_retrait) ? r.date_retrait! : dateRetrait(eventOnly);
+      const retour = isPlausibleCrmDate(r.date_retour) ? r.date_retour! : dateRetour(eventOnly);
+      return retrait <= candidateRetour && retour >= candidateRetrait;
+    });
+
+    return overlapping.length;
   } catch (err) {
     console.error("[CRM] getCrmBookingCount failed:", err);
     return 0; // panne CRM → traité comme "aucune réservation" (fail open, jamais bloquer un client réel)

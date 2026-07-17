@@ -223,7 +223,7 @@ export function ModelSelector() {
 
   if (models.length === 0) {
     return (
-      <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+      <p className="inline-block rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
         Aucun modèle disponible à ce point de retrait.{" "}
         <button onClick={() => router.back()} className="underline hover:no-underline">
           Choisir un autre point de retrait
@@ -237,7 +237,7 @@ export function ModelSelector() {
   if (allUnavailable) {
     return (
       <div className="space-y-5 text-center">
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        <p className="inline-block rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
           Tous les photobooths de cette agence sont déjà réservés à cette date.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
@@ -296,7 +296,7 @@ export function ModelSelector() {
       )}
 
       {promoCode && discount === 0 && freeOptionIds.length === 0 && (
-        <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-700">
+        <div className="inline-block rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-700">
           Code <span className="font-mono font-bold">{promoCode}</span> appliqué automatiquement.
         </div>
       )}
