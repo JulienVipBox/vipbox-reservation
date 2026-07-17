@@ -128,16 +128,23 @@ Le serveur ne fait confiance à **aucune donnée financière** envoyée par le n
 - `/api/test-crm`, `/api/test-email` : protégées par un garde `NODE_ENV === "production"` (renvoient 403 en prod, fonctionnent en dev)
 - `/api/test-crm`, `/api/test-email`, `/admin/test-email` : **à supprimer avant la mise en prod définitive**, cleanup pas encore fait (pas urgent, déjà sans risque actif)
 
-## Blocage des disponibilités — ✅ implémenté avec les vraies données CRM (2026-07-16)
+## Blocage des disponibilités — ✅ implémenté avec les vraies données CRM (2026-07-16/17)
 
-### Principe
-Empêcher les doubles réservations sur une combinaison PR + modèle + date déjà confirmée (payée). Vérifié à l'**étape Modèle** (premier moment où on connaît date + PR + modèle) : carte grisée "Non disponible" si le modèle est complet à cette date/lieu ; si tous les modèles du PR sont complets, message + boutons "Changer de lieu"/"Changer de date".
+### Principe — enjeu business critique (Julien, 2026-07-17)
+Deux exigences, la seconde encore plus importante que la première : (1) un photobooth déjà réservé ne doit pas pouvoir être re-réservé (logistique) ; (2) **un photobooth réellement disponible doit impérativement rester réservable** — un faux "complet" coûte une vente, ce qui est jugé pire qu'un risque logistique. Toute évolution de ce mécanisme doit être vérifiée dans les deux sens, pas seulement "ça bloque bien", avant tout déploiement.
+
+Vérifié à l'**étape Modèle** (premier moment où on connaît date + PR + modèle) : 3 états possibles — `hidden` (capacité CRM à 0, le modèle n'existe pas à ce PR, carte absente de la liste), `full` (capacité atteinte pour cette date précise, carte affichée grisée "Non disponible"), `available` (réservable, ou capacité inconnue — fail open). Si tous les modèles visibles (non "hidden") sont "full" : message + boutons "Changer de lieu"/"Changer de date".
 
 ### Mécanisme
-- `lib/availability.ts` : `getModelCapacity(pickupPoint, modelSlug)` lit la capacité réelle sur la fiche CRM (`point_retrait.reservation_maximum_classic/_smart/_360`) via `pickupPoint.crmId` ; `countPaidReservations()` compte les réservations Supabase `status='payé'` pour ce PR+modèle+date exacte ; `checkModelsAvailability()` combine les deux
+- `lib/availability.ts` : `getModelCapacity()` lit la capacité sur la fiche CRM (`point_retrait.reservation_maximum_classic/_smart/_360`) via `pickupPoint.crmId` ; `checkModelsAvailability()` combine capacité + décompte réel
+- `lib/crm.ts` : `getCrmBookingCount()` compte les prestations CRM déjà réservées pour ce PR+modèle, dont la fenêtre `date_retrait`→`date_retour` chevauche celle de la date demandée (même formule J-1/J+2 que `postToCrm()`) — **`prestations` est LA source de vérité pour "déjà réservé"** (tous canaux : vipboxbooking.com, photoshaker.com, tunnel), pas Supabase (qui ne couvre que ce tunnel, et reste quasi vide tant que le paiement n'est pas branché)
 - `app/api/availability/route.ts` : route serveur appelée par `ModelSelector.tsx` au chargement de l'étape
 - Philosophie "fail open" : capacité inconnue (PR non rapproché du CRM, fiche sans valeur) ou erreur CRM → traité comme disponible, ne bloque jamais un client réel (même principe que Turnstile/rate-limit)
-- Cache CRM 1h pour cette lecture (`getCrmPickupPointCapacity()` dans `lib/crm.ts`) — une capacité modifiée par Julien met jusqu'à 1h à se répercuter côté tunnel, acceptable pour cette donnée
+- Cache CRM 1h pour la capacité (`getCrmPickupPointCapacity()`) ; le décompte des réservations (`getCrmBookingCount()`) n'est **jamais** mis en cache — donnée trop sensible pour risquer un sur-booking
+
+### ⚠️ Dates `date_retrait`/`date_retour` non fiables dans le CRM — géré (2026-07-17)
+Certaines prestations existantes ont `date_retrait` (parfois aussi `date_retour`) rempli avec une date sentinelle `"1999-01-01"` ou `null` au lieu d'une vraie valeur — donnée non renseignée, pas une vraie date. **Pas un cas isolé** : au moins 50 prestations 2026+ concernées, réparties sur des dizaines de PR différents. Une fenêtre construite naïvement à partir de ces valeurs peut chevaucher n'importe quelle date demandée (ex. trouvé en prod : 2 prestations Lille fin août comptées à tort contre le 1er août). `getCrmBookingCount()` traite toute date antérieure à l'an 2000 (`isPlausibleCrmDate()`) comme non renseignée et retombe sur la formule J-1/J+2 calculée depuis le champ `date` de la prestation (fiable, toujours rempli), au lieu de faire confiance à `date_retrait`/`date_retour` bruts.
+Le décompte se fait en deux temps : requête CRM large sur `date` (±14 jours, champ fiable) puis chevauchement précis calculé en mémoire avec ce repli — `date_retrait`/`date_retour` ne sont donc jamais utilisés seuls comme filtre de requête.
 
 ### Source de capacité — colonnes CRM réelles
 Les 3 colonnes `reservation_maximum_classic`/`_smart`/`_360` ont été ajoutées par Joris sur `point_retrait` (type `integer`) et sont éditables dans `/admin/disponibilites`. Les champs CRM `stock_theorique`/`stock_maximum` restent explicitement écartés (ne représentent pas la capacité de réservation simultanée).
@@ -150,6 +157,12 @@ Le rapprochement par code postal (`matchCrmPr`) s'est révélé peu fiable : plu
 - Écrit directement dans le CRM via `updateCrmPickupPointCapacity()` (`lib/crm.ts`) — pas de duplication de données, l'interface CRM classique et cette page lisent/écrivent la même table, toujours synchro
 - Bannière d'avertissement si des PR WP n'ont pas de correspondance CRM (`id_base` vide ou invalide) — filet de sécurité pour une future fiche PR pas encore rapprochée
 - Page forcée en `dynamic = "force-dynamic"` + `middleware.ts` force `Cache-Control: no-store` sur tout `/admin/*` — nécessaire pour refléter immédiatement un changement fait côté CRM ; **en local (`next dev`) un simple F5 peut malgré tout afficher une valeur périmée** (Next.js écrase l'en-tête en dev quoi qu'on fasse, comportement propre au serveur de dev, pas au code — un rechargement forcé Ctrl+Maj+R fonctionne toujours ; en production le F5 normal suffit)
+
+## Navigation entre étapes (StepIndicator) — ✅ implémenté (2026-07-17)
+Les cercles d'étapes déjà terminées (en-tête du tunnel) sont cliquables et ramènent à cette étape ; les étapes pas encore atteintes restent non cliquables. `resetFrom(stepIndex)` (`lib/store.ts`) efface les champs possédés par les étapes suivantes, jamais ceux d'avant ni celui de l'étape ciblée.
+**Piège rencontré** : appeler `resetFrom()` avant `router.push()` provoquait un atterrissage sur l'étape suivant celle cliquée. Cause : plusieurs pages du tunnel ont leur propre garde-fou (`useEffect` qui redirige si un champ requis devient `null`) ; effacer le store pendant qu'on est encore sur la page qu'on quitte déclenche ce garde-fou, qui gagne la course contre notre propre navigation. Fix : naviguer d'abord (`router.push`), effacer le store ensuite via `setTimeout(fn, 0)` pour laisser l'ancienne page se démonter avant de toucher au store. À réappliquer si un futur mécanisme combine navigation + mutation du store dans le même geste.
+
+Messages d'état courts (erreurs, "aucun modèle", confirmations) : toujours en `inline-block` (pas juste `block`), sinon le fond coloré s'étire à la largeur du conteneur au lieu de la largeur du texte — repéré et corrigé sur toutes les occurrences le 2026-07-17. Les cartes de contenu multi-lignes (détail d'un code promo appliqué) restent volontairement en pleine largeur, ce n'est pas le même usage.
 
 ## Base de données — CRM serveurdms.com
 
