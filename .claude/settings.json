@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where php *)",
+      "Bash(where winget *)",
+      "Bash(where choco *)",
+      "Bash(winget install *)",
+      "Bash(ls -la ~/Desktop/ 2>/dev/null || ls -la \"/c/Users/Julien/OneDrive/Bureau/\" 2>/dev/null)",
+      "Read(//c/Users/Julien/**)",
+      "Bash(ls -la \"/c/Users/Julien/Desktop/\" 2>/dev/null)",
+      "Bash(find \"/c/Users/Julien/Desktop/vipbox-contact-mu-plugin\" -type f | head -100)",
+      "Read(//c/Users/Julien/Desktop/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Julien\\OneDrive\\Bureau\\vipbox-contact-mu-plugin\\wp-content\\mu-plugins",
+      "C:\\Users\\Julien\\OneDrive\\Bureau\\vipbox-contact-mu-plugin",
+      "C:\\Users\\Julien\\OneDrive\\Bureau\\vipbox-contact-mu-plugin\\wp-content\\mu-plugins\\vipbox-contact\\includes",
+      "C:\\Users\\Julien\\OneDrive\\Bureau\\vipbox-contact-mu-plugin\\wp-content\\mu-plugins\\vipbox-contact"
+    ]
+  }
+}

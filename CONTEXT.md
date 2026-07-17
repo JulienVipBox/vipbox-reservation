@@ -124,9 +124,8 @@ Le serveur ne fait confiance à **aucune donnée financière** envoyée par le n
 - Coordonnées client (email, champs requis) validées côté serveur, pas seulement côté formulaire
 - `PATCH /api/reservations` verrouillé : whitelist stricte des champs modifiables (`stripe_payment_intent_id` seulement), et seulement si `status = 'en_attente'` (une réservation finalisée ne peut plus être modifiée par cette route)
 
-### Routes de test
-- `/api/test-crm`, `/api/test-email` : protégées par un garde `NODE_ENV === "production"` (renvoient 403 en prod, fonctionnent en dev)
-- `/api/test-crm`, `/api/test-email`, `/admin/test-email` : **à supprimer avant la mise en prod définitive**, cleanup pas encore fait (pas urgent, déjà sans risque actif)
+### Routes de test — ✅ supprimées (2026-07-17)
+`/api/test-crm`, `/api/test-email`, `/admin/test-email` (+ le lien "Test e-mails ⚠️" dans `app/admin/layout.tsx`) ont été supprimées, plus rien à faire ici. C'est via `/api/test-crm` (payload codé en dur, PR Sophia Antipolis) qu'avait été créée la prestation de test CRM signalée plus bas — supprimée en même temps.
 
 ## Blocage des disponibilités — ✅ implémenté avec les vraies données CRM (2026-07-16/17)
 
@@ -159,7 +158,7 @@ Une prestation peut avoir ce champ rempli avec plusieurs valeurs séparées par 
 Sur demande de Julien après la découverte du bug des dates sentinelles ("qu'est-ce qui pourrait causer d'autres faux complets ?"), vérifications complémentaires faites, sans suite nécessaire :
 - Pas de troncature de pagination côté API CRM (33 540 prestations retournées sans paramètre `size`)
 - Pas de `date_retour` aberrante dans le futur lointain (>2030)
-- **4 prestations de test trouvées dans la vraie table `prestations`** (pas `prestations_test`) : 3 sur le PR CRM 155 ("Abonné", non relié à aucune page WP donc jamais exposé au tunnel, impact nul), 1 sur Sophia Antipolis (`"TEST CLAUDE — À supprimer"`, id 40707, 2026-08-15) — capacité de ce PR à 99 donc impact nul aujourd'hui, mais **à supprimer par propreté**, laissé par une session antérieure
+- **4 prestations de test trouvées dans la vraie table `prestations`** (pas `prestations_test`) : 3 sur le PR CRM 155 ("Abonné", non relié à aucune page WP donc jamais exposé au tunnel, impact nul, laissées telles quelles) ; 1 sur Sophia Antipolis (`"TEST CLAUDE — À supprimer"`, id 40707, créée via l'ancienne route `/api/test-crm`) — **supprimée le 2026-07-17**
 
 ### Source de capacité — colonnes CRM réelles
 Les 3 colonnes `reservation_maximum_classic`/`_smart`/`_360` ont été ajoutées par Joris sur `point_retrait` (type `integer`) et sont éditables dans `/admin/disponibilites`. Les champs CRM `stock_theorique`/`stock_maximum` restent explicitement écartés (ne représentent pas la capacité de réservation simultanée).
@@ -208,7 +207,7 @@ Mu-plugin WordPress indépendant (`vipbox-contact-mu-plugin/`, hors du repo tunn
 - Turnstile actif (clés créées par Julien), bug d'espacement du widget invisible corrigé (`margin: -30px` sur `.vipbox-turnstile-wrap` pour compenser la non-fusion des marges causée par `overflow:hidden`)
 - **Seul point réellement en attente** : bascule vers la vraie page `/contact` (remplacer l'ancien formulaire) + passage simultané de `VIPBOX_CONTACT_TEST_MODE` à `false` (restaure le vrai routage email équipe + rate-limiting + coupe les messages de debug) — les deux vont ensemble, ne pas faire l'un sans l'autre
 - Le tunnel redirige déjà les clics "Professionnel" vers `vip-box.fr/contact/?type=pro` (`ProfileCards.tsx`) — ce lien atterrit sur l'ANCIEN formulaire de Joris tant que la bascule ci-dessus n'est pas faite
-- La page interne `/pro` du tunnel (`app/pro/page.tsx`) n'est plus utilisée depuis ce changement — fichier orphelin, à supprimer un jour par propreté (pas fait, sans urgence)
+- La page interne `/pro` du tunnel n'était plus utilisée depuis ce changement — fichier orphelin, **supprimé le 2026-07-17**
 
 ## Photos modèles
 - VIPBOX Classic : https://www.vip-box.fr/wp-content/uploads/2026/04/Classic-Oai-1-air.jpg

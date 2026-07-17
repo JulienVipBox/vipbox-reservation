@@ -40,12 +40,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             >
               E-mails
             </Link>
-            <Link
-              href="/admin/test-email"
-              className="text-amber-400/80 hover:text-amber-300 text-xs transition-colors"
-            >
-              Test e-mails ⚠️
-            </Link>
           </nav>
         </div>
         <LogoutButton />
