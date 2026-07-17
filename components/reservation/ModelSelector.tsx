@@ -54,7 +54,7 @@ function ModelCard({
         </span>
       )}
       {!isAvailable && (
-        <span className="absolute top-3 right-3 z-10 rounded-full bg-gray-700 px-2.5 py-0.5 text-xs font-semibold text-white">
+        <span className="absolute top-3 right-3 z-10 rounded-full bg-black px-2.5 py-0.5 text-xs font-semibold text-white">
           Non disponible à cette date
         </span>
       )}
