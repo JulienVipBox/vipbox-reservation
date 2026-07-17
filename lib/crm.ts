@@ -253,6 +253,16 @@ function matchesModelType(rawType: string | null, target: string): boolean {
 // Si date_retrait/date_retour ne sont pas des dates plausibles sur une
 // prestation existante, on retombe sur la même formule J-1/J+2 appliquée à
 // son propre `date`, plutôt que de faire confiance à une valeur non fiable.
+//
+// Règle business explicite (Julien, 2026-07-17) : toute date de retour,
+// réelle ou supposée, est elle-même une date de réservation possible — le
+// jour où la machine revient n'est plus "occupé", il redevient disponible
+// pour un nouveau retrait ce jour-là. D'où une comparaison stricte (<) sur
+// la date seule (sans l'heure) plutôt que <=/>= : un retour et un retrait
+// tombant le même jour ne sont pas un conflit. Repéré via un vrai cas
+// (Bordeaux, Spinner 360, retour estimé le 14 août faute de vraie date en
+// base) qui grisait à tort le 15 août alors que la machine y est libre dès
+// le matin du 14.
 // `prestations` est LA source de vérité pour "déjà réservé" (confirmé par
 // Julien, 2026-07-16) : elle couvre tous les canaux de vente (vipboxbooking.com,
 // photoshaker.com, et le tunnel lui-même une fois postToCrm() câblé au
@@ -294,16 +304,22 @@ export async function getCrmBookingCount(
     }>(`/records/prestations?${params.toString()}`, { fresh: true }); // décompte critique, jamais mis en cache
 
     const targetType = getTypeAnimationChoisie(modelSlug);
-    const candidateRetrait = dateRetrait(eventDate);
-    const candidateRetour = dateRetour(eventDate);
+    // .slice(0, 10) : comparaison sur la date seule, l'heure n'a pas de sens
+    // ici (voir règle du jour de retour disponible ci-dessus).
+    const candidateRetrait = dateRetrait(eventDate).slice(0, 10);
+    const candidateRetour = dateRetour(eventDate).slice(0, 10);
 
     const overlapping = (data.records ?? []).filter((r) => {
       if (!matchesModelType(r.type_animation_choisie, targetType)) return false;
 
       const eventOnly = r.date.slice(0, 10);
-      const retrait = isPlausibleCrmDate(r.date_retrait) ? r.date_retrait! : dateRetrait(eventOnly);
-      const retour = isPlausibleCrmDate(r.date_retour) ? r.date_retour! : dateRetour(eventOnly);
-      return retrait <= candidateRetour && retour >= candidateRetrait;
+      const retrait = (
+        isPlausibleCrmDate(r.date_retrait) ? r.date_retrait! : dateRetrait(eventOnly)
+      ).slice(0, 10);
+      const retour = (
+        isPlausibleCrmDate(r.date_retour) ? r.date_retour! : dateRetour(eventOnly)
+      ).slice(0, 10);
+      return retrait < candidateRetour && candidateRetrait < retour;
     });
 
     return overlapping.length;
