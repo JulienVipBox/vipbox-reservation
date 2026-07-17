@@ -114,6 +114,11 @@ export function ModelSelector() {
   const [availability, setAvailability] = useState<
     Record<string, "available" | "full" | "hidden">
   >({});
+  // Tant que la vérification n'a pas répondu, on n'affiche pas encore la
+  // grille de modèles — sinon un modèle caché ou grisé apparaît d'abord en
+  // "disponible" (valeur par défaut) puis change d'état une fraction de
+  // seconde plus tard, ce qui donne une impression de scintillement/bug.
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
 
   // Blocage des disponibilités : vérifie, pour chaque modèle proposé à ce lieu
   // et cette date, s'il reste de la capacité (voir lib/availability.ts —
@@ -125,10 +130,15 @@ export function ModelSelector() {
   // qu'elle n'est pas fiable.
   useEffect(() => {
     if (!pickupPoint || !eventDate) return;
+    setAvailabilityLoaded(false);
+
     const slugs = getAvailableModels(pickupPoint.availableModelSlugs, eventDate).map(
       (m) => m.slug,
     );
-    if (slugs.length === 0) return;
+    if (slugs.length === 0) {
+      setAvailabilityLoaded(true);
+      return;
+    }
 
     fetch("/api/availability", {
       method: "POST",
@@ -140,7 +150,8 @@ export function ModelSelector() {
         (data: { availability?: Record<string, "available" | "full" | "hidden"> }) =>
           setAvailability(data.availability ?? {}),
       )
-      .catch(() => null);
+      .catch(() => setAvailability({}))
+      .finally(() => setAvailabilityLoaded(true));
   }, [pickupPoint, eventDate]);
 
   // Yield management : applique automatiquement le meilleur code si aucun n'est déjà actif
@@ -170,6 +181,14 @@ export function ModelSelector() {
 
   if (!pickupPoint || !eventDate) {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
+  }
+
+  if (!availabilityLoaded) {
+    return (
+      <div className="text-sm text-gray-400 animate-pulse">
+        Chargement des disponibilités…
+      </div>
+    );
   }
 
   const models = getAvailableModels(pickupPoint.availableModelSlugs, eventDate).filter(
@@ -219,7 +238,7 @@ export function ModelSelector() {
     return (
       <div className="space-y-5 text-center">
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          Tous nos modèles sont complets à ce point de retrait pour cette date.
+          Tous les photobooths de cette agence sont déjà réservés à cette date.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <button
