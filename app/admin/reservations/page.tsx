@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ReservationTable } from "./ReservationTable";
+import { ExportButton } from "./ExportButton";
 
 export const metadata: Metadata = { title: "Réservations" };
 
@@ -11,10 +12,15 @@ export default async function ReservationsPage() {
     .order("created_at", { ascending: false })
     .limit(200);
 
+  const reservations = data ?? [];
+
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Réservations</h1>
-      <ReservationTable reservations={data ?? []} />
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900">Réservations</h1>
+        <ExportButton reservations={reservations} />
+      </div>
+      <ReservationTable reservations={reservations} />
     </div>
   );
 }
