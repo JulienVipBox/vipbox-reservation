@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
     });
 
     if (res.ok) {
-      router.push("/admin/codes-promo");
+      router.push("/admin/reservations");
     } else {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Erreur de connexion");
