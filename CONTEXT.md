@@ -127,6 +127,12 @@ Le serveur ne fait confiance à **aucune donnée financière** envoyée par le n
 ### Routes de test — ✅ supprimées (2026-07-17)
 `/api/test-crm`, `/api/test-email`, `/admin/test-email` (+ le lien "Test e-mails ⚠️" dans `app/admin/layout.tsx`) ont été supprimées, plus rien à faire ici. C'est via `/api/test-crm` (payload codé en dur, PR Sophia Antipolis) qu'avait été créée la prestation de test CRM signalée plus bas — supprimée en même temps.
 
+## Interface admin `/admin/reservations` — ✅ (2026-07-17)
+- La connexion admin (`/admin/login`) redirige vers cette page (plus vers `/admin/codes-promo`)
+- Tableau des 200 dernières réservations, ligne dépliable — le détail affiche désormais l'**ID Supabase puis l'ID CRM** dans cet ordre (`ReservationTable.tsx`)
+- `crm_prestation_id` est vide pour toutes les réservations actuelles, test ou réelles : l'écriture CRM est désactivée par un TODO dans `lib/payment-handler.ts` (`postToCrm()` appelé nulle part, `crmId` codé en dur à `null`) — se remplira automatiquement une fois le paiement + cette écriture branchés, rien à corriger ici
+- Bouton "Exporter en CSV" à côté du titre (`ExportButton.tsx`, composant séparé de `ReservationTable.tsx` pour pouvoir l'aligner avec le `<h1>` dans `page.tsx` plutôt que de l'empiler au-dessus du tableau) — exporte les réservations affichées avec toutes les colonnes utiles, BOM UTF-8 en tête pour un affichage correct des accents à l'ouverture directe dans Excel
+
 ## Blocage des disponibilités — ✅ implémenté avec les vraies données CRM (2026-07-16/17)
 
 ### Principe — enjeu business critique (Julien, 2026-07-17)
