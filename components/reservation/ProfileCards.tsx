@@ -13,9 +13,11 @@ export function ProfileCards() {
   };
 
   // Les demandes Pro sortent du tunnel : redirigées vers le formulaire de
-  // devis du site vitrine (?type=pro bypass l'étape 1 du formulaire WP).
+  // devis du site vitrine (?type=professionnel bypass l'étape 1 du formulaire
+  // WP — vocabulaire URL du mu-plugin, distinct de son vocabulaire interne
+  // 'pro', voir vipbox-contact.php).
   const handleProfessionnel = () => {
-    window.location.href = "https://www.vip-box.fr/contact/?type=pro";
+    window.location.href = "https://www.vip-box.fr/contact/?type=professionnel";
   };
 
   return (

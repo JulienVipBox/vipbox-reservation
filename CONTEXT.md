@@ -208,12 +208,14 @@ Champ `materiel` : liste (séparée par virgule) des modèles proposés par ce P
 
 ## Formulaire de contact WP (vip-box.fr/contact) — projet séparé, quasi terminé
 
-Mu-plugin WordPress indépendant (`vipbox-contact-mu-plugin/`, hors du repo tunnel), remplace à terme l'ancien formulaire de Joris sur `/contact`. Détail complet dans la mémoire de session — résumé utile ici :
+Mu-plugin WordPress indépendant, hors du repo tunnel, remplace à terme l'ancien formulaire de Joris sur `/contact`. Détail complet dans la mémoire de session — résumé utile ici :
+- ⚠️ **Dossier local à jour : `C:\Users\Julien\OneDrive\Bureau\Claude Code\mu-plugins\vipbox-contact\`** (pas l'ancien `vipbox-contact-mu-plugin\`, qui traîne encore sur le Bureau mais n'est plus la référence — contenu identique au 2026-07-24, mais à vérifier à l'avenir avant de repartir de l'un ou l'autre)
 - Sécurité auditée et jugée solide (nonce CSRF, honeypot, Turnstile, rate-limit, échappement XSS, validation serveur) — rien à corriger côté code
 - Turnstile actif (clés créées par Julien), bug d'espacement du widget invisible corrigé (`margin: -30px` sur `.vipbox-turnstile-wrap` pour compenser la non-fusion des marges causée par `overflow:hidden`)
-- **Seul point réellement en attente** : bascule vers la vraie page `/contact` (remplacer l'ancien formulaire) + passage simultané de `VIPBOX_CONTACT_TEST_MODE` à `false` (restaure le vrai routage email équipe + rate-limiting + coupe les messages de debug) — les deux vont ensemble, ne pas faire l'un sans l'autre
-- Le tunnel redirige déjà les clics "Professionnel" vers `vip-box.fr/contact/?type=pro` (`ProfileCards.tsx`) — ce lien atterrit sur l'ANCIEN formulaire de Joris tant que la bascule ci-dessus n'est pas faite
-- La page interne `/pro` du tunnel n'était plus utilisée depuis ce changement — fichier orphelin, **supprimé le 2026-07-17**
+- ✅ **`VIPBOX_CONTACT_TEST_MODE` passé à `false` le 2026-07-24** (restaure le vrai routage email équipe + rate-limiting + coupe les messages de debug) — modifié en local, **reste à re-déployer sur le serveur** (FTP ou équivalent) par Julien
+- ⬜ **Reste à faire côté WP-admin (Julien)** : basculer la vraie page `/contact` (repasser sur le template Elementor par défaut, ajouter le shortcode `[vipbox_contact]`) — actuellement encore l'ancien formulaire de Joris (vérifié en direct le 2026-07-24)
+- ✅ **Bypass d'étape 1 par URL, pour Particulier ET Professionnel** (2026-07-24) : `?type=professionnel` ou `?type=particulier` sur l'URL de la page contact. Vocabulaire URL volontairement différent du vocabulaire interne du plugin (`'pro'`/`'particulier'`, utilisé partout dans `ajax.php`/`email.php`/`form.js`) — la traduction se fait uniquement dans `vipbox_contact_render_shortcode()` (`vipbox-contact.php`), rien d'autre à toucher. Le lien Pro existait déjà (`?type=pro` à l'origine) mais avec l'ancien vocabulaire — **`ProfileCards.tsx` mis à jour en conséquence** (`?type=professionnel`)
+- Version du plugin : 1.5.0
 
 ## Photos modèles
 - VIPBOX Classic : https://www.vip-box.fr/wp-content/uploads/2026/04/Classic-Oai-1-air.jpg

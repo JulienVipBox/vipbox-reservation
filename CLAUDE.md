@@ -12,7 +12,7 @@
 ## Parcours utilisateur
 
 ### Page d'accueil
-- Particulier → tunnel / Professionnel → redirection externe vers `https://www.vip-box.fr/contact/?type=pro` (formulaire de devis du site vitrine, pas dans le tunnel)
+- Particulier → tunnel / Professionnel → redirection externe vers `https://www.vip-box.fr/contact/?type=professionnel` (formulaire de devis du site vitrine, pas dans le tunnel)
 
 ### Tunnel Particulier (8 étapes)
 1. **Date** — calendrier FR ✅
