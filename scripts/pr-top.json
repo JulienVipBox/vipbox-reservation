@@ -1,0 +1,47 @@
+[
+  {
+    "pr": "15",
+    "slug": "paris",
+    "title": "Paris"
+  },
+  {
+    "pr": "118",
+    "slug": "lyon-saint-priest",
+    "title": "Lyon - Saint-Priest"
+  },
+  {
+    "pr": "7",
+    "slug": "bordeaux",
+    "title": "Bordeaux"
+  },
+  {
+    "pr": "6",
+    "slug": "nantes",
+    "title": "Nantes"
+  },
+  {
+    "pr": "67",
+    "slug": "orleans",
+    "title": "Orléans"
+  },
+  {
+    "pr": "16",
+    "slug": "nice-cannes",
+    "title": "Nice - Cannes"
+  },
+  {
+    "pr": "93",
+    "slug": "besancon",
+    "title": "Besançon"
+  },
+  {
+    "pr": "20",
+    "slug": "angers",
+    "title": "Angers"
+  },
+  {
+    "pr": "22",
+    "slug": "quimper",
+    "title": "Quimper"
+  }
+]
