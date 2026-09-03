@@ -75,9 +75,20 @@ Colonnes réelles : `id`, `code`, `discount_amount`, `free_option_ids` (array), 
 - Inscription gratuite : **`https://signup.preprod.cawl-solutions.fr/`** — une simple adresse email suffit, ni SIRET ni contrat signé nécessaires
 - Une fois le compte créé : portail de test (`https://portail.preprod.cawl-solutions.fr/`), explorateur d'API (`https://explorer.ecommerce.cawl-solutions.fr/`), documentation complète (`https://docs.ecommerce.cawl-solutions.fr/fr/`)
 - **SDK Node.js confirmé disponible** côté serveur (cohérent avec la stack Next.js), ainsi que PHP/Java/.NET/Python/Ruby ; SDK client JS/Android/Swift/Flutter/React Native si besoin plus tard
-- **Conclusion pratique : l'intégration technique peut commencer dès que Julien a créé le compte test**, en parallèle du dossier commercial — pas besoin d'attendre la signature ni la date cible de début septembre
-- Architecture envisagée : Hosted Checkout Page, SDK CAWL côté serveur (route API Next.js)
-- Noms exacts des identifiants d'API (clé, secret, ID marchand) **pas encore confirmés** — à vérifier une fois le compte test créé et le portail/l'explorateur d'API accessibles, ne pas se fier aux noms `CAWL_API_KEY`/`CAWL_API_SECRET`/`CAWL_PSPID` notés dans une version précédente de ce fichier, c'était une supposition non vérifiée
+- **Compte test créé par Julien** (peu après le 2026-08-31) — intégration technique démarrable
+
+### Architecture technique CAWL confirmée (doc officielle, pas une supposition)
+- **Package npm réel : `onlinepayments-sdk-nodejs`** — ⚠️ corrige une erreur précédente de ce fichier qui indiquait `@worldline-solutions/sdk-nodejs` (jamais vérifié, faux)
+- Init du SDK : `onlinePaymentsSdk.init({ integrator, host, scheme: 'https', port: 443, apiKeyId, secretApiKey })`
+  - `host` preprod : `payment.preprod.cawl-solutions.fr` — prod : `payment.cawl-solutions.fr`
+  - `apiKeyId` / `secretApiKey` : à récupérer dans le portail marchand (`portail.preprod.cawl-solutions.fr`, section identifiants/API — pas trouvés ailleurs dans la doc publique, nécessite d'être connecté)
+- Flux Hosted Checkout Page :
+  1. `POST /v2/{merchantId}/hostedcheckouts` (`merchantId` = PSPID, à récupérer aussi dans le portail) avec `order.amountOfMoney.{currencyCode,amount}` (montant en **centimes**), `hostedCheckoutSpecificInput.{returnUrl,locale,sessionTimeout,allowedNumberOfPaymentAttempts}`
+  2. Réponse : `hostedCheckoutId` + `redirectUrl` (valable 3h) → rediriger le client dessus
+  3. Retour client sur `returnUrl` ; statut interrogeable via `GET /v2/{merchantId}/hostedcheckouts/{hostedCheckoutId}` (`statusOutput.statusCode`)
+  4. Webhook en complément (le client peut fermer l'onglet avant le retour) — signature à vérifier une fois la doc webhook consultée
+- Doc consultée : `docs.ecommerce.cawl-solutions.fr/fr/integration/basic-integration-methods/hosted-checkout-page` et `.../server-sdks/nodejs`
+- Noms de variables d'env proposés (à confirmer avec Julien avant de coder) : `CAWL_API_KEY_ID`, `CAWL_SECRET_API_KEY`, `CAWL_PSPID`, `CAWL_HOST`
 
 ### Variables d'env Stripe (si retenu)
 - `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
