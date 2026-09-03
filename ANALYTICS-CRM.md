@@ -738,8 +738,23 @@ importées via un "récapitulatif" (digest mail) plutôt qu'en temps réel. En
 isolant le seul `Provenance = "formulaires de contact"` (comparable tel
 quel à 2025), août 2026 est à **+8,6% YoY** (198→215), toujours une
 rupture de tendance mais bien plus modeste que le +21% brut — le reste de
-l'écart est un artefact de périmètre de comptage (une étiquette qui
-n'existait pas en 2025), pas une vraie accélération de la demande.
+l'écart vient d'une étiquette qui n'existait simplement pas en 2025, donc
+absente mécaniquement du dénominateur, pas d'une vraie accélération de la
+demande cette année-là spécifiquement.
+
+**✅ Confirmé par Julien (3 sept. 2026)** : vip-box.lu et
+paris-photobooth.com sont bien des propriétés VIPBOX (pas des sources
+externes) — **à comptabiliser dans le SEO global de VIPBOX**, de même que
+toute entrée manuelle ou tout import marqué comme demande site web. Le
+filtre `Provenance,in,formulaires de contact,Site VIP BOX - demande
+entrante` déjà utilisé partout dans ce document pour "canal site" reste
+donc la bonne convention — rien à changer côté périmètre. Seule la
+comparaison YoY brute de 2026 (avec cette étiquette) à 2025 (sans, car
+l'étiquette n'existait pas encore) demande la précaution ci-dessus, propre
+à toute comparaison avant/après l'apparition d'une nouvelle étiquette —
+pas une raison d'exclure quoi que ce soit du périmètre "canal site"
+lui-même.
+
 **Conclusion :**
 mai et juillet se dégradent plus vite que la tendance établie, juin est
 dans la norme, août casse la tendance (à moitié artefact de mesure) — pas
