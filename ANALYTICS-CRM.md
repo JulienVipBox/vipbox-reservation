@@ -315,6 +315,165 @@ partie du sursaut BtoC vient des fiches manuelles "Site VIP BOX" apparues à
 partir du 13 août, cf. section dédiée — hors ces fiches, l'écart YoY resterait
 positif mais plus modeste).
 
+## Réservations en ligne (vipboxbooking.com / WooCommerce) — champ `cel` (1er septembre 2026)
+
+**Table `prestations`, champ `cel` (booléen) + `numero_cel`** = marqueur fiable
+des réservations passées en ligne sur `vipboxbooking.com` (site WooCommerce,
+synchronisé quotidiennement vers le CRM). Confirmé en croisant `numero_cel`
+avec les `order_number` d'un export WooCommerce réel — correspondance exacte.
+**Ne pas utiliser `provenance_client` pour ça** : la valeur `2 = site de
+location en ligne` n'existe quasi pas dans la table (42 lignes sur tout
+l'historique) — champ saisi à la main par les commerciaux, non alimenté par la
+synchro automatique.
+
+Sur les 12 derniers mois (`date_reservation` du 2025-09-01 au 2026-09-01) :
+**1454 lignes `cel=1`** (1443 hors annulations), quasi exclusivement `MARIAGE`
+(1443) — cohérent avec "seuls les particuliers réservent en ligne". Montant
+CRM (`montant_prestation_int`) total non annulé : **552 221 €**.
+
+### ⚠️ Piège : `montant_prestation_int` ≠ somme des `order_total` WooCommerce
+
+En comparant au véritable export WooCommerce (12 mois, 1449 commandes
+contenant un modèle de box) : la somme brute des `order_total` WooCommerce ne
+donne que **429 604 €**, soit 23 % de moins que le total CRM. **Ce n'est pas
+une anomalie de synchro** — c'est parce que `order_total` reflète seulement ce
+qui a été facturé *dans cette commande précise*, alors que `montant_prestation_int`
+reflète la valeur totale contractée de la prestation :
+
+- Commande au statut **`En cours`** (paiement carte complet) : `order_total`
+  WooCommerce = montant total réel. Ex. commande 79707, 340 € des deux côtés.
+- Commande au statut **`Réglé partiellement`** (paiement Alma / 2x, acompte
+  ~50 %) : `order_total` WooCommerce ne montre que **l'acompte**, alors que
+  `montant_prestation_int` en CRM enregistre le **montant total** (≈ 2×
+  l'acompte). Ex. commande 79711 : `order_total` 185 €, CRM 370 €.
+
+Sur cette fenêtre, 670 des 1449 commandes (46 %) sont `Réglé partiellement`.
+En doublant leur `order_total` (approximation acompte 50 %) : 560 674 € —
+cohérent à 1,5 % près avec les 552 221 € du CRM. **Conclusion : le CRM est la
+source fiable pour le montant total** ; ne jamais sommer naïvement les
+`order_total` d'un export WooCommerce brut sans corriger les commandes
+`Réglé partiellement`, sous peine de sous-estimer le CA réel d'environ un quart.
+
+**Non résolu** : Julien avait en tête ~300 000 €/808 commandes sur 12 mois —
+inférieur aux deux sources (WooCommerce brut 430k, CRM 552k). Origine de ce
+chiffre à clarifier (fenêtre différente ? uniquement les commandes déjà
+soldées en totalité ? approximation de mémoire ?) — pas d'explication trouvée
+à ce jour, ni dans le CRM ni dans l'export WooCommerce.
+
+## Accès Google Search Console (1er septembre 2026)
+
+Aucun connecteur officiel Anthropic/Google pour GSC à ce jour. Des connecteurs
+MCP tiers existent (services SaaS faisant le pont OAuth) : Porter, Supermetrics,
+Windsor.ai, Composio, Data Bloo, Adzviser, et
+[mcpsearchconsole.com](https://mcpsearchconsole.com/) — vérifié : gratuit sans
+carte bancaire, OAuth Google géré (pas de clé API à gérer), hébergé (URL
+`https://mcpsearchconsole.com/mcp` à ajouter comme serveur MCP), lecture seule
+(`webmasters.readonly`). Expose clics/impressions/CTR/position par requête,
+page, pays, appareil ; inspection d'URL ; plusieurs propriétés ; comparaison de
+périodes ; sitemaps et santé technique.
+
+Recommandation : l'ajouter comme connecteur MCP **à ce projet Claude Code**
+plutôt qu'à l'app claude.ai seule — permet de croiser directement le SEO avec
+le CRM/les PR/le code du tunnel dans la même conversation, sans copier-coller
+entre deux outils.
+
+**Faisabilité du croisement géographique par PR** : confirmée — chaque PR a
+une URL publique dédiée type `vip-box.fr/location-photobooth-perigueux-sud/`
+(slug identique à celui déjà utilisé côté CRM/tunnel pour `id_base`), donc le
+croisement trafic/position SEO par PR vs demandes/réservations sur ce même PR
+est possible en joignant sur ce slug.
+
+Méthode recommandée : démarrer au niveau global (GSC clics + impressions +
+position moyenne, mensuel, tout le site, mis en regard des courbes de
+demandes déjà produites) avant de descendre au niveau PR — et seulement sur un
+échantillon de 5-10 PR à fort volume avant de généraliser aux ~140, le volume
+par PR individuel risquant d'être trop faible pour être significatif mois par
+mois (même problème que le "N trop faible" déjà rencontré sur la conversion
+par canal).
+
+### ✅ Accès GSC opérationnel (1er septembre 2026)
+
+Compte de service impossible (règle d'organisation Google Workspace
+`iam.managed.disableServiceAccountKeyCreation`) → contourné avec un client
+OAuth **"Application de bureau"** (projet Cloud `vipbox-tools`). Deux scripts,
+sans dépendance npm ajoutée (mêmes conventions que `weekly-pr-check.js`) :
+
+- `scripts/gsc-auth.js` — autorisation initiale, **une seule fois** (ouvre un
+  lien, Julien clique "Autoriser", le script capture le callback en local et
+  écrit `GSC_REFRESH_TOKEN` dans `.env.local`). Déjà fait, pas à refaire sauf
+  si le jeton est révoqué.
+- `scripts/gsc-query.js` — requêtes Search Analytics réutilisables, aucune
+  interaction requise ensuite (rafraîchit le token tout seul). Lancé seul :
+  imprime clics/impressions/CTR/position moyenne par mois calendaire, 16
+  derniers mois (limite de rétention GSC). Exporte aussi `getAccessToken` /
+  `searchAnalyticsQuery` pour être réutilisé avec d'autres dimensions
+  (`page`, `query`, `country`...) une fois qu'on affine par PR.
+
+Propriété confirmée : **`sc-domain:vip-box.fr`** (propriété de domaine — pas
+une propriété par URL). Ça couvre automatiquement tous les sous-domaines et
+protocoles, donc `reservation.vip-box.fr` (le tunnel) sera déjà inclus dedans
+une fois en prod, sans reconfiguration GSC nécessaire.
+
+Premier pull réel (2025-05 à 2026-08, mensuel, tout le site) :
+
+| Mois | Clics | Impressions | CTR | Position moy. |
+|---|---|---|---|---|
+| 2025-05 | 5586 | 405 799 | 1,38% | 14,4 |
+| 2025-06 | 5205 | 473 121 | 1,10% | 13,7 |
+| 2025-07 | 5163 | 301 694 | 1,71% | 15,8 |
+| 2025-08 | 4539 | 783 004 | 0,58% | 11,0 |
+| 2025-09 | 5373 | 1 328 379 | 0,40% | 9,1 |
+| 2025-10 | 4497 | 706 807 | 0,64% | 9,2 |
+| 2025-11 | 3515 | 350 589 | 1,00% | 11,1 |
+| 2025-12 | 2810 | 331 378 | 0,85% | 12,0 |
+| 2026-01 | 4129 | 450 318 | 0,92% | 14,2 |
+| 2026-02 | 3527 | 494 318 | 0,71% | 13,1 |
+| 2026-03 | 5530 | 424 517 | 1,30% | 9,8 |
+| 2026-04 | 7700 | 477 014 | 1,61% | 9,4 |
+| 2026-05 | 7796 | 359 703 | 2,17% | 10,0 |
+| 2026-06 | 7980 | 184 923 | 4,32% | 9,5 |
+| 2026-07 | 4190 | 148 988 | 2,81% | 12,1 |
+| 2026-08 | 4070 | 147 218 | 2,76% | 15,6 |
+
+**Observation à creuser, pas encore analysée** : le pic d'impressions de
+2025-09 (1,3M, CTR 0,40%) tranche nettement avec le reste — à vérifier si
+c'est un artefact (ex. indexation temporaire sur des requêtes hors-sujet) ou
+un vrai signal, avant de l'utiliser tel quel dans une comparaison.
+
+### Croisement refonte : demandes / réservations en ligne / GSC (1er septembre 2026)
+
+Mêmes 3 fenêtres de 97 jours que la comparaison refonte déjà établie plus haut
+(pré-refonte strictement antérieur 12 fév-19 mai 2026, post-refonte 20 mai-24
+août 2026, N-1 même fenêtre calendaire 2025) :
+
+| | Pré-refonte | Post-refonte | N-1 | Post vs Pré | Post vs N-1 |
+|---|---|---|---|---|---|
+| Demandes (canal formulaire) | 675 | 583 | 837 | -13,6% | **-30,3%** |
+| Réservations en ligne (`cel`) | 462 | 363 | 374 | -21,4% | **-2,9%** |
+| — montant | 179 171€ | 138 520€ | 147 035€ | -22,7% | -5,8% |
+| GSC clics | 20 264 | 17 916 | 15 597 | -11,6% | **+14,9%** |
+| GSC impressions | 1 426 038 | 575 322 | 1 398 490 | **-59,7%** | **-58,9%** |
+| GSC CTR | 1,42% | 3,11% | 1,12% | +1,69 pt | +1,99 pt |
+| GSC position moy. | 10,4 | 11,5 | 13,6 | +1,1 (recul léger) | -2,1 (amélioration) |
+
+**Lecture :**
+
+1. **Divergence nette demandes vs réservations en ligne en YoY** : demandes
+   formulaire -30,3%, réservations en ligne quasi stables (-2,9%). Deux
+   entonnoirs différents (devis humain vs achat direct en libre-service) —
+   le canal "site" semble perdre surtout du devis, pas de la vente directe.
+2. **Impressions en forte baisse (-59%) mais clics en hausse YoY (+14,9%) et
+   CTR presque triplé, position moyenne meilleure qu'il y a un an (13,6→11,5)**
+   — signature typique d'une perte de visibilité sur des requêtes peu
+   pertinentes/génériques couplée à un maintien ou gain sur les requêtes qui
+   comptent réellement, plutôt qu'une vraie perte de trafic. Hypothèse non
+   vérifiée à ce stade : il faudrait comparer la composition des
+   requêtes/pages qui ont le plus perdu d'impressions (dimension `query` ou
+   `page` de `searchAnalyticsQuery`, pas encore fait) pour la confirmer.
+3. Comme toujours en YoY, ça mélange effet refonte et tendance de fond du
+   marché (déclin déjà documenté depuis l'exercice 2022/2023) — à interpréter
+   avec la même prudence que le reste des comparaisons N-1 de ce document.
+
 ## À refaire quand on y reviendra
 
 1. Redemander le même comparatif de périodes avec les dates à jour.
@@ -325,3 +484,8 @@ positif mais plus modeste).
    n'apparaîtront dans `Prospect` que si on ajoute une écriture CRM dédiée (à
    voir avec `lib/crm.ts` — `postToCrm()` écrit aujourd'hui dans `prestations`,
    pas `Prospect`).
+4. Clarifier avec Julien l'origine du chiffre "~300 000 €/808 commandes" pour
+   les réservations en ligne (voir section dédiée ci-dessus) — ni le CRM
+   (552k€/1443) ni l'export WooCommerce brut (430k€/1449) ne le confirment.
+5. Si un connecteur MCP GSC est ajouté au projet, reprendre l'analyse
+   SEO ↔ demandes/réservations décrite dans la section dédiée ci-dessus.
