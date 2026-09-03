@@ -701,6 +701,92 @@ mensuelle complète), marqueur refonte sur chaque graphique, données
 doublement nettoyées (spam + marque). Republier si besoin de mise à jour
 (mêmes données que le tableau ci-dessus).
 
+### YoY normalisé par mois (3 sept. 2026) — méthode plus rigoureuse que le pré/post simple
+
+Demande de Julien : plutôt que comparer une seule paire pré/post-refonte
+(qui ignore la saisonnalité) ou une seule paire N-1 (qui ignore la
+tendance de fond, elle-même en déclin d'année en année), calculer le taux
+de variation YoY **mois par mois** sur plusieurs années, et voir si
+juin-août 2026 (post-refonte) s'écarte de la tendance YoY établie par les
+années précédentes pour ces mêmes mois calendaires — pas juste s'il baisse.
+`scripts/prospect-site-yoy.js` (nouveau), demandes canal site, 2019-2026.
+
+Sur les 3 transitions post-Covid "propres" (2022→23, 23→24, 24→25) comme
+référence :
+
+| Mois | Tendance établie (moy. 2022-25) | 2025→2026 réel | Écart |
+|---|---|---|---|
+| Mai | -23% | -43% | pire (~-20pt) |
+| Juin | -30% | -34% | dans la norme |
+| Juillet | -22% | -44% | pire (~-22pt) |
+| Août | -33% (très stable, -28 à -39% trois ans d'affilée) | **+21%** | **rupture nette (+54pt)** |
+
+Août est statistiquement le vrai signal (écart-type historique ~4,5pt sur
+3 ans très serrés — la rupture 2026 sort largement de cette bande), mais
+**~60% de la hausse brute vient du nouveau canal "Site VIP BOX" (fiches
+manuelles, actif depuis le 13 août)** : en isolant le seul formulaire
+classique, août 2026 est à **+8,6% YoY** (198→215), toujours une rupture
+de tendance mais bien plus modeste que le +21% brut. **Conclusion :**
+mai et juillet se dégradent plus vite que la tendance établie, juin est
+dans la norme, août casse la tendance (à moitié artefact de mesure) — pas
+de signal cohérent sur juin-août pris ensemble, cohérent avec l'absence
+d'effet refonte déjà constatée par ailleurs. Méthode à réutiliser pour les
+prochaines analyses de ce type (plus rigoureuse que pré/post ou N-1 seuls).
+
+### SEO local par PR (3 sept. 2026) — premier passage, 9 PR à fort volume
+
+Enjeu identifié comme majeur par Julien. Croisement `scripts/pr-local-seo.js` :
+GSC (dimension `page`, filtre `contains location-photobooth-<slug>`) ×
+CRM (`Prospect.point_retrait`, très bien renseigné — 90014/90024 lignes
+non nulles). Jointure via `id_base` (WP) = `point_retrait` (CRM), confirmée
+fiable. Échantillon : les 9 PR au plus fort volume de demandes canal site
+sur 24 mois (`point_retrait` 15/Paris, 118/Lyon-St-Priest, 7/Bordeaux,
+6/Nantes, 67/Orléans, 16/Nice-Cannes, 93/Besançon, 20/Angers, 22/Quimper —
+`point_retrait` 57, le plus gros volume historique, n'a pas de fiche WP
+correspondante, probablement un PR fermé/renommé, exclu de l'échantillon
+GSC pour cette raison).
+
+| PR | Demandes pré→post | Clics GSC pré→post | Impr. GSC pré→post | Position pré→post |
+|---|---|---|---|---|
+| Paris | 51→43 | 48→39 | 8005→7202 | 26,0→24,1 |
+| Lyon–Saint-Priest | 19→7 | 0→29 | 0→4414 | (aucune page)→16,5 |
+| Bordeaux | 17→21 | 82→97 | 9249→8235 | 17,7→13,9 |
+| Nantes | 21→13 | 65→57 | 8345→5471 | 13,2→14,4 |
+| Orléans | 14→16 | 150→139 | 4743→4981 | 18,1→9,6 |
+| Nice–Cannes | 18→8 | 0→56 | 0→7748 | (aucune page)→14,4 |
+| Besançon | 11→6 | 75→41 | 2749→1925 | 15,7→12,1 |
+| Angers | 10→3 | 64→46 | 4244→3250 | 14,3→12,3 |
+| Quimper | 12→13 | 86→91 | 3568→2378 | 12,0→10,1 |
+
+**Trouvaille principale : Lyon–Saint-Priest et Nice–Cannes n'avaient
+strictement aucune page indexée avant la refonte** (vérifié : zéro
+impression sur toute URL contenant le slug, même sans le préfixe
+`location-photobooth-`) **et apparaissent après avec un volume déjà notable
+et une position correcte (14-17)**. C'est un vrai effet local positif et
+directement attribuable à la refonte — contrairement au signal site-wide
+qui reste ambigu. Pas vérifié si d'autres PR sont dans ce cas au-delà de
+ces 9 (à faire).
+
+**⚠️ Non fait : volet réservations en ligne (`cel`) par PR.** La table CRM
+`prestations` renvoie une `PDOException` sur toute requête **filtrée**
+depuis le 3 septembre 2026 en cours de session (`Prospect` répond
+normalement, la lecture directe d'un enregistrement `prestations` par ID
+fonctionne, seule la liste filtrée casse — testé sous plusieurs
+combinaisons de filtres, y compris sans aucun filtre de date). Probable
+souci serveur côté CRM, indépendant du code de ce projet — à vérifier côté
+`serveurdms.com`, puis relancer `pr-local-seo.js` (colonne résa déjà
+prévue dans le script, juste inopérante tant que la table ne répond pas).
+
+### Semrush — inaccessible (3 sept. 2026)
+
+Connecteur Semrush disponible côté MCP mais **units API épuisées** — toute
+requête (`projects`, etc.) échoue avec un message dirigeant vers
+https://www.semrush.com/mcp-access pour en ajouter. Rien d'exploitable tant
+que ce n'est pas réglé côté compte Semrush de VIPBOX. Objectif prévu une
+fois débloqué : historique des ajouts de mots-clés suivis (Position
+Tracking), avec un tri pertinence à faire (beaucoup de volume attendu,
+notamment sur les mots-clés locaux).
+
 ## À refaire quand on y reviendra
 
 1. Redemander le même comparatif de périodes avec les dates à jour.
@@ -717,3 +803,13 @@ doublement nettoyées (spam + marque). Republier si besoin de mise à jour
 5. ✅ Fait le 3 septembre 2026 : accès GSC opérationnel (OAuth, pas de
    connecteur MCP tiers nécessaire), croisement SEO ↔ demandes/réservations
    mensualisé + artifact "Refonte VIPBOX".
+6. Vérifier si la `PDOException` sur `prestations` (requêtes filtrées,
+   apparue le 3 sept. 2026) est résolue côté CRM, puis relancer
+   `scripts/pr-local-seo.js` pour compléter le volet réservations en ligne
+   par PR (colonne déjà prévue dans le script).
+7. Une fois Semrush débloqué (units API), reprendre l'historique des
+   ajouts de mots-clés suivis (Position Tracking) — trier la pertinence,
+   volume attendu important, notamment mots-clés locaux.
+8. Étendre l'échantillon SEO local au-delà des 9 PR déjà croisés — voir
+   en particulier si d'autres PR ont, comme Lyon-Saint-Priest et
+   Nice-Cannes, une page apparue seulement après la refonte.
