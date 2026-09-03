@@ -4,6 +4,12 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { WP_REGIONS } from "@/lib/models";
 
 export const metadata: Metadata = { title: "Codes promo" };
+
+// Même raison que /admin/reservations et /admin/disponibilites : sans ceci,
+// un code créé/modifié après le dernier déploiement resterait invisible ici
+// jusqu'au déploiement suivant (mise en cache serveur App Router).
+export const dynamic = "force-dynamic";
+
 import type { PromoCode } from "@/types";
 import { PromoToggle } from "./PromoToggle";
 

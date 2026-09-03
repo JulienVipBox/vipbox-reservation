@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { PickupPoint, PhotoboothModel, Option, CustomerInfo } from "@/types";
+import { getModelPrice } from "./models";
 
 export type PromoEffect = {
   discountAmount: number; // remise fixe en €
@@ -57,7 +58,20 @@ export const useReservationStore = create<ReservationStore>()(
 
       setClientType: (type) => set({ clientType: type }),
 
-      setEventDate: (date) => set({ eventDate: date }),
+      // Un modèle déjà sélectionné a un prix saisonnier (voir lib/models.ts)
+      // qui dépend de la date — recalculé ici pour ne jamais rester périmé
+      // quand on revient modifier la date sans repasser par l'étape Modèle
+      // (ex. lien "Modifier" du Récapitulatif). Bug réel constaté en prod :
+      // 390€ affiché jusqu'au Récapitulatif pour une date de septembre
+      // (440€), le modèle ayant été choisi avec une date différente avant
+      // ce changement.
+      setEventDate: (date) => {
+        const { model } = get();
+        set({
+          eventDate: date,
+          model: model ? { ...model, price: getModelPrice(model.slug, date) } : model,
+        });
+      },
 
       // Resetting model + promo + options when PR changes
       setPickupPoint: (pp) =>
