@@ -56,6 +56,7 @@ export function CoordonneesForm() {
     customer,
     setCustomer,
     setReservationId,
+    applyPromoCode,
   } = useReservationStore();
 
   useEffect(() => {
@@ -78,6 +79,10 @@ export function CoordonneesForm() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
+  // Réservation créée mais code promo rejeté à la dernière minute (voir
+  // handleSubmit) — on retient l'ID pour ne pas recréer une 2e réservation
+  // si l'utilisateur confirme après avoir vu le nouveau total.
+  const [promoRejectedReservationId, setPromoRejectedReservationId] = useState("");
 
   if (!model || !pickupPoint || !eventDate) {
     return <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>;
@@ -141,6 +146,19 @@ export function CoordonneesForm() {
         return;
       }
 
+      // Le code promo peut avoir été affiché comme valide à l'étape Code
+      // promo (avant que l'e-mail ne soit connu, voir lib/promo.ts) puis
+      // rejeté ici (ex. déjà utilisé par cette adresse). Dans ce cas, le
+      // total réellement enregistré (et facturé) diffère de celui vu
+      // jusqu'ici — on prévient explicitement plutôt que de laisser
+      // l'utilisateur découvrir un montant différent sur la page Paiement.
+      if (promoCode && !data.promoCodeApplied) {
+        applyPromoCode(promoCode, null);
+        setPromoRejectedReservationId(data.id);
+        setSaving(false);
+        return;
+      }
+
       setCustomer(form);
       setReservationId(data.id);
       router.push("/reservation/paiement");
@@ -149,6 +167,34 @@ export function CoordonneesForm() {
       setSaving(false);
     }
   };
+
+  const handleContinueAfterPromoRejected = () => {
+    setCustomer(form);
+    setReservationId(promoRejectedReservationId);
+    router.push("/reservation/paiement");
+  };
+
+  if (promoRejectedReservationId) {
+    const optionsTotal = options.reduce((s, o) => s + o.price, 0);
+    const newTotal = model.price + optionsTotal;
+    return (
+      <div className="max-w-xl mx-auto space-y-5 text-center py-10">
+        <h1 className="text-xl font-bold text-gray-900">Le code promo n&apos;a pas pu être appliqué</h1>
+        <p className="text-sm text-gray-600">
+          Le code <span className="font-medium">{promoCode}</span> n&apos;est plus valable pour cette
+          réservation (déjà utilisé, ou conditions non remplies). Nouveau total :{" "}
+          <span className="font-semibold text-gray-900">{newTotal} €</span>.
+        </p>
+        <button
+          onClick={handleContinueAfterPromoRejected}
+          className="inline-flex items-center gap-2 rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          Continuer vers le paiement
+          <span aria-hidden>→</span>
+        </button>
+      </div>
+    );
+  }
 
   const inp = (field: keyof CustomerInfo) =>
     errors[field] ? INPUT_ERROR : INPUT;

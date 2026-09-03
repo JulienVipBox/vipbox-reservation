@@ -178,7 +178,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ id: data.id });
+    // Le code promo peut avoir été affiché comme valide plus tôt dans le
+    // tunnel (étape Code promo, avant que l'e-mail client ne soit connu) puis
+    // rejeté ici (ex. quota par e-mail déjà atteint, voir lib/promo.ts) — le
+    // total réellement enregistré peut donc différer de celui affiché
+    // jusqu'ici. On le signale explicitement au client plutôt que de le
+    // laisser découvrir un montant différent silencieusement à l'étape
+    // Paiement (voir CoordonneesForm.tsx).
+    return NextResponse.json({
+      id: data.id,
+      totalAmount,
+      promoCodeApplied: finalPromoCode,
+      promoDiscountApplied: discount,
+    });
   } catch (err) {
     console.error("Reservation API error:", err);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
