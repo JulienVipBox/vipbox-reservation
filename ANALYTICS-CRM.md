@@ -414,26 +414,38 @@ une propriété par URL). Ça couvre automatiquement tous les sous-domaines et
 protocoles, donc `reservation.vip-box.fr` (le tunnel) sera déjà inclus dedans
 une fois en prod, sans reconfiguration GSC nécessaire.
 
-Premier pull réel (2025-05 à 2026-08, mensuel, tout le site) :
+Premier pull réel effectué (2025-05 à 2026-08, mensuel, tout le site) — table
+brute non reproduite ici : elle contenait un pic d'impressions inexpliqué en
+septembre 2025 et un spam ponctuel en juin 2026, tous deux identifiés et
+retirés depuis. **La table de référence à jour, nettoyée, est dans "Vue
+mensuelle (16 mois) + artifact" plus bas.**
 
-| Mois | Clics | Impressions | CTR | Position moy. |
-|---|---|---|---|---|
-| 2025-05 | 5586 | 405 799 | 1,38% | 14,4 |
-| 2025-06 | 5205 | 473 121 | 1,10% | 13,7 |
-| 2025-07 | 5163 | 301 694 | 1,71% | 15,8 |
-| 2025-08 | 4539 | 783 004 | 0,58% | 11,0 |
-| 2025-09 | 5373 | 1 328 379 | 0,40% | 9,1 |
-| 2025-10 | 4497 | 706 807 | 0,64% | 9,2 |
-| 2025-11 | 3515 | 350 589 | 1,00% | 11,1 |
-| 2025-12 | 2810 | 331 378 | 0,85% | 12,0 |
-| 2026-01 | 4129 | 450 318 | 0,92% | 14,2 |
-| 2026-02 | 3527 | 494 318 | 0,71% | 13,1 |
-| 2026-03 | 5530 | 424 517 | 1,30% | 9,8 |
-| 2026-04 | 7700 | 477 014 | 1,61% | 9,4 |
-| 2026-05 | 7796 | 359 703 | 2,17% | 10,0 |
-| 2026-06 | 7980 | 184 923 | 4,32% | 9,5 |
-| 2026-07 | 4190 | 148 988 | 2,81% | 12,1 |
-| 2026-08 | 4070 | 147 218 | 2,76% | 15,6 |
+### ⚠️ Piratage SEO confirmé et résolu — 13 juin 2026, à toujours exclure des analyses GSC
+
+En creusant la composition des requêtes hors-marque, des mots-clés typiques du
+spam SEO de jeux d'argent en ligne indonésien (`situs delman567`, `prima77`,
+`mpo212`, etc.) ressortaient en position 1-3 sur de vraies pages existantes du
+site (`/references/`, `/assistance-telephonique/`,
+`/location-photobooth-montpellier/`) — signe d'un piratage avec contenu caché
+injecté (visible par Googlebot, pas par un visiteur normal). **Confirmé par
+Julien : incident connu, déjà traité.** Vérification GSC (regex sur les
+motifs habituels de ce type de spam, `date`×`query`, 16 mois) : épisode
+**concentré sur une seule journée, le 13 juin 2026** (34 825 impressions /
+2 152 clics ce jour-là), traces résiduelles négligeables jusqu'au 14 juillet,
+**rien depuis** (vérifié jusqu'au 2 septembre 2026, dernière donnée
+disponible). Sans impact sur les fenêtres pré-refonte (12 fév-19 mai) ni N-1
+(2025) — seule la fenêtre post-refonte (20 mai-24 août) le contient.
+
+**⚠️ Piège méthodologique important** : un filtre `excludingRegex` sur
+`query` appliqué à toute une période de plusieurs mois d'affilée sous-compte
+aussi des mois **sans rapport avec le spam** (ex. vérifié sur mai 2025 :
+passe de 5586 à 3475 clics alors qu'il n'y a aucun spam ce mois-là) —
+comportement connu de l'API GSC avec les requêtes rares/anonymisées, pas
+fiable pour une exclusion large. **La bonne méthode, utilisée partout dans
+ce document depuis** : lister les lignes exactes via `includingRegex` sur
+`dimensions: ['date','query']`, vérifier qu'elles sont bien concentrées sur
+la période suspecte, puis les **soustraire précisément** du total brut —
+jamais appliquer l'exclusion en aveugle sur une longue période.
 
 ### ⚠️ Pic d'impressions de septembre 2025 expliqué : homonyme "VIPBox", site pirate de streaming sportif
 
@@ -482,13 +494,17 @@ en aveugle, voir piège documenté plus haut) :
 | GSC CTR | 1,56% | 2,00% | 1,59% | +0,44 pt | +0,41 pt |
 | GSC position moy. | 15,9 | 14,9 | 21,4 | -1,0 (amélioration) | **-6,5 (nette amélioration)** |
 
-**Le tableau "corrigé du spam" juste au-dessus est donc lui-même à
-considérer comme dépassé** — il ne retirait que le spam, pas le bruit de
-marque, qui pesait bien plus lourd (jusqu'à 69% des impressions pré-refonte).
-Une fois les deux retirés, l'histoire change à nouveau, et cette fois plutôt
-dans le bon sens : clics quasi stables pré/post (-9,3%, plus la petite baisse
-franche vue précédemment), position moyenne **nettement meilleure qu'il y a
-un an** (21,4 → 14,9, -6,5 points), CTR toujours meilleur. Le volume reste en
+**Historique de correction, pour mémoire** : une première version de ce
+tableau (chiffres bruts, rien exclu) concluait à tort à une hausse des
+clics de +14,9% en YoY — artefact entier du spam du 13 juin. Une version
+intermédiaire a ensuite retiré le spam seul, ce qui semblait confirmer une
+franche baisse des clics (-41,5%/-24,0%). **C'est cette double exclusion
+(spam + marque) qui est la version fiable à retenir.** Une fois les deux
+retirés, l'histoire change à nouveau, et cette fois plutôt dans le bon sens
+par rapport à la version "spam seul" : clics quasi stables pré/post (-9,3%,
+plus la petite baisse franche vue précédemment), position moyenne
+**nettement meilleure qu'il y a un an** (21,4 → 14,9, -6,5 points), CTR
+toujours meilleur. Le volume reste en
 repli (impressions -29%/-43%), mais nettement moins sévère que les -70%
 qu'affichait la vue brute. **Nuance à garder** : cette double exclusion est
 une estimation raisonnable, pas une science exacte — une partie du trafic
@@ -500,19 +516,10 @@ extrêmement bas suggère que c'est une petite minorité, mais pas zéro).
 Demande de Julien (3 sept. 2026) : le bloc "97 jours" ci-dessus est trop
 large pour un effet SEO forcément progressif — segmenter plus finement.
 `scripts/gsc-monthly-clean.js` (nouveau) applique la même méthode de double
-exclusion (spam + marque) mois calendaire par mois calendaire :
-
-| Mois | Clics nets | Impressions nettes | CTR net | Position nette |
-|---|---|---|---|---|
-| 2025-12 | 1228 | 113 018 | 1,09% | 18,0 |
-| 2026-01 | 2175 | 186 313 | 1,17% | 22,3 |
-| 2026-02 | 1994 | 182 129 | 1,09% | 21,2 |
-| 2026-03 | 2184 | 135 260 | 1,61% | 14,1 |
-| 2026-04 | 2129 | 126 491 | 1,68% | 14,3 |
-| 2026-05 | 2284 | 118 869 | 1,92% | 13,9 |
-| 2026-06 | 2269 | 98 949 | 2,29% | 12,6 |
-| 2026-07 | 1730 | 90 353 | 1,91% | 14,6 |
-| 2026-08 | 2020 | 110 772 | 1,82% | 18,1 |
+exclusion (spam + marque) mois calendaire par mois calendaire — chiffres
+repris dans la colonne GSC de la vue mensuelle 16 mois plus bas (elle a été
+recalculée avec cette même méthode doublement nettoyée sur toute la
+fenêtre, pas seulement autour de la refonte).
 
 **Constat important, qui nuance le tableau "pré/post" ci-dessus** : à ce
 niveau de détail, **il n'y a pas de rupture nette au 20 mai**. La grosse
@@ -548,22 +555,7 @@ uniquement (pas `prestations` : `date_reservation` est décalée de plusieurs
 semaines à plusieurs mois par rapport à la demande réelle), toutes
 provenances confondues (échantillon plus robuste), part de chaque mois
 calendaire dans le total de son année, moyennée sur plusieurs années
-(`scripts/prospect-seasonality.js`, nouveau) :
-
-| Mois | Indice (7 ans, 2019-2025) | Indice (5 ans, 2021-2025, plus robuste) |
-|---|---|---|
-| Janvier | 154 | 128 |
-| Février | 108 | 102 |
-| Mars | 96 | 98 |
-| Avril | 90 | 94 |
-| Mai | 94 | 104 |
-| Juin | 96 | 97 |
-| Juillet | 94 | 97 |
-| Août | 85 | 87 |
-| Septembre | 119 | 122 |
-| Octobre | 108 | 113 |
-| Novembre | 108 | 104 |
-| Décembre | 48 | 53 |
+(`scripts/prospect-seasonality.js`, nouveau).
 
 (Indice 100 = part moyenne d'un mois si le volume était parfaitement plat
 sur l'année, soit 8,33%.)
@@ -651,65 +643,6 @@ série mensuelle GSC (16 mois) et à la table mensuelle complète plus bas ; se
 resynchroniser sur cet indice une fois 2026 devenu une année complète
 utilisable (portera le N propre à 5).
 
-### ⚠️ Piratage SEO confirmé et résolu — 13 juin 2026, à toujours exclure des analyses GSC
-
-En creusant la composition des requêtes hors-marque, des mots-clés typiques du
-spam SEO de jeux d'argent en ligne indonésien (`situs delman567`, `prima77`,
-`mpo212`, etc.) ressortaient en position 1-3 sur de vraies pages existantes du
-site (`/references/`, `/assistance-telephonique/`,
-`/location-photobooth-montpellier/`) — signe d'un piratage avec contenu caché
-injecté (visible par Googlebot, pas par un visiteur normal). **Confirmé par
-Julien : incident connu, déjà traité.** Vérification GSC (regex sur les
-motifs habituels de ce type de spam, `date`×`query`, 16 mois) : épisode
-**concentré sur une seule journée, le 13 juin 2026** (34 825 impressions /
-2 152 clics ce jour-là), traces résiduelles négligeables jusqu'au 14 juillet,
-**rien depuis** (vérifié jusqu'au 2 septembre 2026, dernière donnée
-disponible). Sans impact sur les fenêtres pré-refonte (12 fév-19 mai) ni N-1
-(2025) — seule la fenêtre post-refonte (20 mai-24 août) le contient.
-
-**Réflexe pour toute analyse GSC future** : exclure ce bruit via un filtre
-`excludingRegex` sur la dimension `query` (motif utilisé :
-`situs|slot|togel|mpo[0-9]|prima[0-9]|delman|judi|casino|toto[0-9]|gacor|maxwin|rtp[0-9]|bandar|pkv|domino[0-9]|sbobet`)
-avant toute agrégation portant sur une période incluant juin 2026.
-
-### Croisement refonte : demandes / réservations en ligne / GSC (1er septembre 2026, corrigé du spam)
-
-Mêmes 3 fenêtres de 97 jours que la comparaison refonte déjà établie plus haut
-(pré-refonte strictement antérieur 12 fév-19 mai 2026, post-refonte 20 mai-24
-août 2026 **hors requêtes de spam ci-dessus**, N-1 même fenêtre calendaire
-2025) :
-
-| | Pré-refonte | Post-refonte | N-1 | Post vs Pré | Post vs N-1 |
-|---|---|---|---|---|---|
-| Demandes (canal formulaire) | 675 | 583 | 837 | -13,6% | **-30,3%** |
-| Réservations en ligne (`cel`) | 462 | 363 | 374 | -21,4% | **-2,9%** |
-| — montant | 179 171€ | 138 520€ | 147 035€ | -22,7% | -5,8% |
-| GSC clics | 20 264 | 11 857 | 15 597 | **-41,5%** | **-24,0%** |
-| GSC impressions | 1 426 038 | 423 299 | 1 398 490 | -70,3% | -69,7% |
-| GSC CTR | 1,42% | 2,80% | 1,12% | +1,38 pt | +1,68 pt |
-| GSC position moy. | 10,4 | 11,4 | 13,6 | +1,0 (recul léger) | -2,2 (amélioration) |
-
-**⚠️ Correction d'une lecture précédente** : une première version de ce
-tableau (chiffres bruts, spam non exclu) concluait à tort à une hausse des
-clics de +14,9% en YoY — artefact entier du pic de spam du 13 juin. Une fois
-nettoyé, les clics sont **en baisse** sur les deux comparaisons, cohérent
-avec (pas contradictoire de) la baisse des demandes. Ne jamais réutiliser la
-version brute.
-
-**Lecture (chiffres nettoyés) :**
-
-1. **Divergence nette demandes vs réservations en ligne en YoY** : demandes
-   formulaire -30,3%, réservations en ligne quasi stables (-2,9%). Deux
-   entonnoirs différents (devis humain vs achat direct en libre-service) —
-   le canal "site" semble perdre surtout du devis, pas de la vente directe.
-2. **CTR et position restent meilleurs qu'il y a un an** (CTR 1,12%→2,80%,
-   position 13,6→11,4) malgré la chute de volume — pas un signal
-   entièrement négatif, mais le volume (clics, impressions) est clairement
-   en repli, sur les deux comparaisons.
-3. Comme toujours en YoY, ça mélange effet refonte et tendance de fond du
-   marché (déclin déjà documenté depuis l'exercice 2022/2023) — à interpréter
-   avec la même prudence que le reste des comparaisons N-1 de ce document.
-
 ### Vue mensuelle (16 mois, 2025-05 → 2026-08) + artifact
 
 Mensualisation complète demandée par Julien plutôt que la seule vue "3
@@ -721,52 +654,52 @@ le pull GSC :
 
 | Mois | Demandes (canal site) | Résa. en ligne (`cel`) | Montant | Clics GSC* | Impr. GSC* | CTR* | Position* |
 |---|---|---|---|---|---|---|---|
-| 2025-05 | 338 | 126 | 52 510€ | 5586 | 405 799 | 1,38% | 14,4 |
-| 2025-06 | 278 | 118 | 47 535€ | 5205 | 473 121 | 1,10% | 13,7 |
-| 2025-07 | 294 | 122 | 48 020€ | 5163 | 301 694 | 1,71% | 15,8 |
-| 2025-08 | 198 | 115 | 43 890€ | 4539 | 783 004 | 0,58% | 11,0 |
-| 2025-09 | 244 | 107 | 40 155€ | 5373 | 1 328 379 | 0,40% | 9,1 |
-| 2025-10 | 232 | 89 | 34 425€ | 4497 | 706 807 | 0,64% | 9,2 |
-| 2025-11 | 178 | 121 | 44 755€ | 3515 | 350 589 | 1,00% | 11,1 |
-| 2025-12 | 153 | 55 | 19 905€ | 2810 | 331 378 | 0,85% | 12,0 |
-| 2026-01 | 296 | 154 | 59 060€ | 4129 | 450 318 | 0,92% | 14,2 |
-| 2026-02 | 278 | 142 | 55 500€ | 3527 | 494 318 | 0,71% | 13,1 |
-| 2026-03 | 198 | 153 | 60 883€ | 5530 | 424 517 | 1,30% | 9,8 |
-| 2026-04 | 207 | 129 | 50 745€ | 7700 | 477 014 | 1,61% | 9,4 |
-| 2026-05 | 193 | 149 | 55 893€ | 7796 | 359 703 | 2,17% | 10,0 |
-| 2026-06 | 184 | 147 | 56 065€ | 5825 | 150 079 | 3,88% | 11,2 |
-| 2026-07 | 165 | 97 | 37 515€ | 4190 | 148 988 | 2,81% | 12,1 |
-| 2026-08 | 239 | 100 | 37 020€ | 4070 | 147 218 | 2,76% | 15,6 |
+| 2025-05 | 338 | 126 | 52 510€ | 3393 | 198 604 | 1,71% | 19,9 |
+| 2025-06 | 278 | 118 | 47 535€ | 3037 | 192 421 | 1,58% | 20,7 |
+| 2025-07 | 294 | 122 | 48 020€ | 2790 | 159 681 | 1,75% | 22,0 |
+| 2025-08 | 198 | 115 | 43 890€ | 2167 | 164 175 | 1,32% | 21,4 |
+| 2025-09 | 244 | 107 | 40 155€ | 2612 | 161 015 | 1,62% | 18,4 |
+| 2025-10 | 232 | 89 | 34 425€ | 2267 | 128 444 | 1,76% | 15,4 |
+| 2025-11 | 178 | 121 | 44 755€ | 1602 | 119 268 | 1,34% | 17,8 |
+| 2025-12 | 153 | 55 | 19 905€ | 1228 | 113 018 | 1,09% | 18,0 |
+| 2026-01 | 296 | 154 | 59 060€ | 2175 | 186 313 | 1,17% | 22,3 |
+| 2026-02 | 278 | 142 | 55 500€ | 1994 | 182 129 | 1,09% | 21,2 |
+| 2026-03 | 198 | 153 | 60 883€ | 2184 | 135 260 | 1,61% | 14,1 |
+| 2026-04 | 207 | 129 | 50 745€ | 2129 | 126 491 | 1,68% | 14,3 |
+| 2026-05 | 193 | 149 | 55 893€ | 2284 | 118 869 | 1,92% | 13,9 |
+| 2026-06 | 184 | 147 | 56 065€ | 2269 | 98 949 | 2,29% | 12,6 |
+| 2026-07 | 165 | 97 | 37 515€ | 1730 | 90 353 | 1,91% | 14,6 |
+| 2026-08 | 239 | 100 | 37 020€ | 2020 | 110 772 | 1,82% | 18,1 |
 
-*Colonnes GSC nettoyées du spam du 13 juin (seul juin 2026 est concerné —
-brut 7980 clics/184 923 impressions/4,32%/9,5, cf. piège spam ci-dessus ;
-soustraction précise des lignes `date`×`query` matchant le spam, pas
-d'`excludingRegex` global — voir note méthodologique juste en dessous).
-
-**⚠️ Piège méthodologique découvert en construisant cette vue** : un filtre
-`excludingRegex` sur `query` appliqué à toute la période de 16 mois
-d'affilée sous-comptait aussi des mois **antérieurs au piratage** (ex.
-2025-05 passait de 5586 à 3475 clics) — comportement connu de l'API GSC avec
-les requêtes rares/anonymisées, pas fiable pour une exclusion large. La
-bonne méthode : lister les lignes exactes via `includingRegex` sur
-`dimensions: ['date','query']`, vérifier qu'elles sont bien concentrées sur
-la période suspecte, puis les **soustraire précisément** du total brut
-mois par mois — jamais appliquer l'exclusion en aveugle sur une longue
-période.
+*Colonnes GSC doublement nettoyées (spam du 13 juin **et** requêtes de
+marque contaminées par l'homonyme "VIPBox" — voir sections dédiées
+ci-dessus), via `scripts/gsc-monthly-clean.js` : soustraction précise des
+lignes `date`×`query` matchant chaque motif, jamais `excludingRegex` en
+aveugle (piège documenté plus haut). Remplace une première version de ce
+tableau qui ne retirait que le spam — le pic de septembre 2025 (1,3M
+d'impressions brutes) disparaît quasi entièrement une fois la marque
+retirée (161k, en fait inférieur à mai 2025), confirmant qu'il s'agissait
+presque exclusivement de bruit de marque, pas d'un vrai signal SEO.
 
 **Lecture** : aucun décrochage brutal identifiable au mois de la refonte
 (mai 2026) sur aucune des séries — cohérent avec l'attente de Julien qu'un
 effet, s'il existe, apparaîtrait progressivement plutôt qu'immédiatement.
-Les clics/impressions GSC amorcent en fait leur tendance haussière
-**avant** la refonte (dès mars-avril 2026), et les réservations en ligne
-suivent une saisonnalité propre (creux décembre à 55, pic mars à 153) plus
-marquée que tout effet refonte visible à l'œil sur cette fenêtre.
+Côté GSC (vue doublement nettoyée), le vrai mouvement est une **amélioration
+de position/CTR amorcée en mars 2026, avant la refonte**, culminant en
+juin, puis un retour en août proche du niveau de février — pas une rupture
+au 20 mai (détail complet dans la section dédiée plus haut). Les
+réservations en ligne suivent une saisonnalité propre (creux décembre à 55,
+pic mars à 153) plus marquée que tout effet refonte visible à l'œil sur
+cette fenêtre — voir aussi la section saisonnalité `Prospect` plus haut, qui
+montre que la baisse pré/post des demandes elle-même n'est pas clairement
+distinguable du bruit saisonnier normal une fois le Covid correctement
+neutralisé dans l'indice de référence.
 
 **Artifact publié : "Refonte VIPBOX"** — courbes interactives (indice base
-100 demandes/résa/clics, impressions en échelle log avec pic sept. 2025
-annoté, CTR+position, table mensuelle complète), marqueur refonte sur
-chaque graphique. Republier si besoin de mise à jour (mêmes données que le
-tableau ci-dessus).
+100 demandes/résa/clics, impressions en échelle log, CTR+position, table
+mensuelle complète), marqueur refonte sur chaque graphique, données
+doublement nettoyées (spam + marque). Republier si besoin de mise à jour
+(mêmes données que le tableau ci-dessus).
 
 ## À refaire quand on y reviendra
 
