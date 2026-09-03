@@ -440,39 +440,122 @@ Premier pull réel (2025-05 à 2026-08, mensuel, tout le site) :
 c'est un artefact (ex. indexation temporaire sur des requêtes hors-sujet) ou
 un vrai signal, avant de l'utiliser tel quel dans une comparaison.
 
-### Croisement refonte : demandes / réservations en ligne / GSC (1er septembre 2026)
+### ⚠️ Piratage SEO confirmé et résolu — 13 juin 2026, à toujours exclure des analyses GSC
+
+En creusant la composition des requêtes hors-marque, des mots-clés typiques du
+spam SEO de jeux d'argent en ligne indonésien (`situs delman567`, `prima77`,
+`mpo212`, etc.) ressortaient en position 1-3 sur de vraies pages existantes du
+site (`/references/`, `/assistance-telephonique/`,
+`/location-photobooth-montpellier/`) — signe d'un piratage avec contenu caché
+injecté (visible par Googlebot, pas par un visiteur normal). **Confirmé par
+Julien : incident connu, déjà traité.** Vérification GSC (regex sur les
+motifs habituels de ce type de spam, `date`×`query`, 16 mois) : épisode
+**concentré sur une seule journée, le 13 juin 2026** (34 825 impressions /
+2 152 clics ce jour-là), traces résiduelles négligeables jusqu'au 14 juillet,
+**rien depuis** (vérifié jusqu'au 2 septembre 2026, dernière donnée
+disponible). Sans impact sur les fenêtres pré-refonte (12 fév-19 mai) ni N-1
+(2025) — seule la fenêtre post-refonte (20 mai-24 août) le contient.
+
+**Réflexe pour toute analyse GSC future** : exclure ce bruit via un filtre
+`excludingRegex` sur la dimension `query` (motif utilisé :
+`situs|slot|togel|mpo[0-9]|prima[0-9]|delman|judi|casino|toto[0-9]|gacor|maxwin|rtp[0-9]|bandar|pkv|domino[0-9]|sbobet`)
+avant toute agrégation portant sur une période incluant juin 2026.
+
+### Croisement refonte : demandes / réservations en ligne / GSC (1er septembre 2026, corrigé du spam)
 
 Mêmes 3 fenêtres de 97 jours que la comparaison refonte déjà établie plus haut
 (pré-refonte strictement antérieur 12 fév-19 mai 2026, post-refonte 20 mai-24
-août 2026, N-1 même fenêtre calendaire 2025) :
+août 2026 **hors requêtes de spam ci-dessus**, N-1 même fenêtre calendaire
+2025) :
 
 | | Pré-refonte | Post-refonte | N-1 | Post vs Pré | Post vs N-1 |
 |---|---|---|---|---|---|
 | Demandes (canal formulaire) | 675 | 583 | 837 | -13,6% | **-30,3%** |
 | Réservations en ligne (`cel`) | 462 | 363 | 374 | -21,4% | **-2,9%** |
 | — montant | 179 171€ | 138 520€ | 147 035€ | -22,7% | -5,8% |
-| GSC clics | 20 264 | 17 916 | 15 597 | -11,6% | **+14,9%** |
-| GSC impressions | 1 426 038 | 575 322 | 1 398 490 | **-59,7%** | **-58,9%** |
-| GSC CTR | 1,42% | 3,11% | 1,12% | +1,69 pt | +1,99 pt |
-| GSC position moy. | 10,4 | 11,5 | 13,6 | +1,1 (recul léger) | -2,1 (amélioration) |
+| GSC clics | 20 264 | 11 857 | 15 597 | **-41,5%** | **-24,0%** |
+| GSC impressions | 1 426 038 | 423 299 | 1 398 490 | -70,3% | -69,7% |
+| GSC CTR | 1,42% | 2,80% | 1,12% | +1,38 pt | +1,68 pt |
+| GSC position moy. | 10,4 | 11,4 | 13,6 | +1,0 (recul léger) | -2,2 (amélioration) |
 
-**Lecture :**
+**⚠️ Correction d'une lecture précédente** : une première version de ce
+tableau (chiffres bruts, spam non exclu) concluait à tort à une hausse des
+clics de +14,9% en YoY — artefact entier du pic de spam du 13 juin. Une fois
+nettoyé, les clics sont **en baisse** sur les deux comparaisons, cohérent
+avec (pas contradictoire de) la baisse des demandes. Ne jamais réutiliser la
+version brute.
+
+**Lecture (chiffres nettoyés) :**
 
 1. **Divergence nette demandes vs réservations en ligne en YoY** : demandes
    formulaire -30,3%, réservations en ligne quasi stables (-2,9%). Deux
    entonnoirs différents (devis humain vs achat direct en libre-service) —
    le canal "site" semble perdre surtout du devis, pas de la vente directe.
-2. **Impressions en forte baisse (-59%) mais clics en hausse YoY (+14,9%) et
-   CTR presque triplé, position moyenne meilleure qu'il y a un an (13,6→11,5)**
-   — signature typique d'une perte de visibilité sur des requêtes peu
-   pertinentes/génériques couplée à un maintien ou gain sur les requêtes qui
-   comptent réellement, plutôt qu'une vraie perte de trafic. Hypothèse non
-   vérifiée à ce stade : il faudrait comparer la composition des
-   requêtes/pages qui ont le plus perdu d'impressions (dimension `query` ou
-   `page` de `searchAnalyticsQuery`, pas encore fait) pour la confirmer.
+2. **CTR et position restent meilleurs qu'il y a un an** (CTR 1,12%→2,80%,
+   position 13,6→11,4) malgré la chute de volume — pas un signal
+   entièrement négatif, mais le volume (clics, impressions) est clairement
+   en repli, sur les deux comparaisons.
 3. Comme toujours en YoY, ça mélange effet refonte et tendance de fond du
    marché (déclin déjà documenté depuis l'exercice 2022/2023) — à interpréter
    avec la même prudence que le reste des comparaisons N-1 de ce document.
+
+### Vue mensuelle (16 mois, 2025-05 → 2026-08) + artifact
+
+Mensualisation complète demandée par Julien plutôt que la seule vue "3
+fenêtres" ci-dessus — permet de voir si l'effet refonte apparaît
+progressivement plutôt que d'un coup. `scripts/crm-monthly.js` (nouveau,
+mêmes conventions que les autres scripts) interroge `Prospect` et
+`prestations` mois calendaire par mois calendaire, sur la même fenêtre que
+le pull GSC :
+
+| Mois | Demandes (canal site) | Résa. en ligne (`cel`) | Montant | Clics GSC* | Impr. GSC* | CTR* | Position* |
+|---|---|---|---|---|---|---|---|
+| 2025-05 | 338 | 126 | 52 510€ | 5586 | 405 799 | 1,38% | 14,4 |
+| 2025-06 | 278 | 118 | 47 535€ | 5205 | 473 121 | 1,10% | 13,7 |
+| 2025-07 | 294 | 122 | 48 020€ | 5163 | 301 694 | 1,71% | 15,8 |
+| 2025-08 | 198 | 115 | 43 890€ | 4539 | 783 004 | 0,58% | 11,0 |
+| 2025-09 | 244 | 107 | 40 155€ | 5373 | 1 328 379 | 0,40% | 9,1 |
+| 2025-10 | 232 | 89 | 34 425€ | 4497 | 706 807 | 0,64% | 9,2 |
+| 2025-11 | 178 | 121 | 44 755€ | 3515 | 350 589 | 1,00% | 11,1 |
+| 2025-12 | 153 | 55 | 19 905€ | 2810 | 331 378 | 0,85% | 12,0 |
+| 2026-01 | 296 | 154 | 59 060€ | 4129 | 450 318 | 0,92% | 14,2 |
+| 2026-02 | 278 | 142 | 55 500€ | 3527 | 494 318 | 0,71% | 13,1 |
+| 2026-03 | 198 | 153 | 60 883€ | 5530 | 424 517 | 1,30% | 9,8 |
+| 2026-04 | 207 | 129 | 50 745€ | 7700 | 477 014 | 1,61% | 9,4 |
+| 2026-05 | 193 | 149 | 55 893€ | 7796 | 359 703 | 2,17% | 10,0 |
+| 2026-06 | 184 | 147 | 56 065€ | 5825 | 150 079 | 3,88% | 11,2 |
+| 2026-07 | 165 | 97 | 37 515€ | 4190 | 148 988 | 2,81% | 12,1 |
+| 2026-08 | 239 | 100 | 37 020€ | 4070 | 147 218 | 2,76% | 15,6 |
+
+*Colonnes GSC nettoyées du spam du 13 juin (seul juin 2026 est concerné —
+brut 7980 clics/184 923 impressions/4,32%/9,5, cf. piège spam ci-dessus ;
+soustraction précise des lignes `date`×`query` matchant le spam, pas
+d'`excludingRegex` global — voir note méthodologique juste en dessous).
+
+**⚠️ Piège méthodologique découvert en construisant cette vue** : un filtre
+`excludingRegex` sur `query` appliqué à toute la période de 16 mois
+d'affilée sous-comptait aussi des mois **antérieurs au piratage** (ex.
+2025-05 passait de 5586 à 3475 clics) — comportement connu de l'API GSC avec
+les requêtes rares/anonymisées, pas fiable pour une exclusion large. La
+bonne méthode : lister les lignes exactes via `includingRegex` sur
+`dimensions: ['date','query']`, vérifier qu'elles sont bien concentrées sur
+la période suspecte, puis les **soustraire précisément** du total brut
+mois par mois — jamais appliquer l'exclusion en aveugle sur une longue
+période.
+
+**Lecture** : aucun décrochage brutal identifiable au mois de la refonte
+(mai 2026) sur aucune des séries — cohérent avec l'attente de Julien qu'un
+effet, s'il existe, apparaîtrait progressivement plutôt qu'immédiatement.
+Les clics/impressions GSC amorcent en fait leur tendance haussière
+**avant** la refonte (dès mars-avril 2026), et les réservations en ligne
+suivent une saisonnalité propre (creux décembre à 55, pic mars à 153) plus
+marquée que tout effet refonte visible à l'œil sur cette fenêtre.
+
+**Artifact publié : "Refonte VIPBOX"** — courbes interactives (indice base
+100 demandes/résa/clics, impressions en échelle log avec pic sept. 2025
+annoté, CTR+position, table mensuelle complète), marqueur refonte sur
+chaque graphique. Republier si besoin de mise à jour (mêmes données que le
+tableau ci-dessus).
 
 ## À refaire quand on y reviendra
 
@@ -487,5 +570,6 @@ août 2026, N-1 même fenêtre calendaire 2025) :
 4. Clarifier avec Julien l'origine du chiffre "~300 000 €/808 commandes" pour
    les réservations en ligne (voir section dédiée ci-dessus) — ni le CRM
    (552k€/1443) ni l'export WooCommerce brut (430k€/1449) ne le confirment.
-5. Si un connecteur MCP GSC est ajouté au projet, reprendre l'analyse
-   SEO ↔ demandes/réservations décrite dans la section dédiée ci-dessus.
+5. ✅ Fait le 3 septembre 2026 : accès GSC opérationnel (OAuth, pas de
+   connecteur MCP tiers nécessaire), croisement SEO ↔ demandes/réservations
+   mensualisé + artifact "Refonte VIPBOX".
