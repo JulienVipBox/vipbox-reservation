@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     allowed_pr_slugs: body.allowed_pr_slugs?.length ? body.allowed_pr_slugs : null,
     allowed_region_ids: body.allowed_region_ids?.length ? body.allowed_region_ids : null,
     max_uses: body.max_uses ? Number(body.max_uses) : null,
-    max_uses_per_user: body.max_uses_per_user ? Number(body.max_uses_per_user) : 1,
+    max_uses_per_user: body.max_uses_per_user ? Number(body.max_uses_per_user) : null,
     allowed_emails: body.allowed_emails?.length ? body.allowed_emails : null,
     active: true,
   }).select().single();

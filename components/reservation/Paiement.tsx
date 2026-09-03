@@ -66,16 +66,20 @@ export function Paiement() {
 
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-      <button
-        onClick={handlePay}
-        disabled={loading}
-        className="w-full rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? "Redirection en cours…" : "Payer par carte bancaire"}
-      </button>
+      <div className="flex justify-center">
+        <button
+          onClick={handlePay}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Redirection en cours…" : "Payer par carte bancaire"}
+        </button>
+      </div>
 
       <p className="text-xs text-gray-400 text-center">
-        Paiement 100&nbsp;% sécurisé — vous allez être redirigé vers notre prestataire bancaire.
+        Paiement 100&nbsp;% sécurisé.
+        <br />
+        Vous allez être redirigé vers notre prestataire bancaire.
       </p>
     </div>
   );

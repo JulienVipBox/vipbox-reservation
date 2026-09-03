@@ -66,7 +66,7 @@ export type PromoCode = {
   allowed_region_ids: number[] | null;
   max_uses: number | null;
   uses_count: number;
-  max_uses_per_user: number;
+  max_uses_per_user: number | null; // null = illimité, même convention que max_uses
   allowed_emails: string[] | null;
   active: boolean;
   created_at: string;

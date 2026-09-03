@@ -32,7 +32,7 @@ export function NewPromoForm({ prs }: { prs: Pr[] }) {
   const [selectedPrs, setSelectedPrs] = useState<string[]>([]);
   const [prSearch, setPrSearch] = useState("");
   const [maxUses, setMaxUses] = useState("");
-  const [maxPerUser, setMaxPerUser] = useState("1");
+  const [maxPerUser, setMaxPerUser] = useState("");
   const [emailsRaw, setEmailsRaw] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +85,7 @@ export function NewPromoForm({ prs }: { prs: Pr[] }) {
       allowed_region_ids: geoType === "regions" ? selectedRegions : [],
       allowed_pr_slugs: geoType === "prs" ? selectedPrs : [],
       max_uses: maxUses ? Number(maxUses) : null,
-      max_uses_per_user: Number(maxPerUser) || 1,
+      max_uses_per_user: maxPerUser ? Number(maxPerUser) : null,
       allowed_emails: emails,
     };
 
@@ -297,6 +297,7 @@ export function NewPromoForm({ prs }: { prs: Pr[] }) {
             <input
               type="number"
               min={1}
+              placeholder="Illimité"
               value={maxPerUser}
               onChange={(e) => setMaxPerUser(e.target.value)}
               className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"

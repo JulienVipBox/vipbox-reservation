@@ -58,8 +58,9 @@ export async function validatePromoCode(params: {
     if (!pc.allowed_emails.map((e) => e.toLowerCase().trim()).includes(email)) return null;
   }
 
-  // Per-user quota (only if email known)
-  if (customerEmail && pc.max_uses_per_user > 0) {
+  // Per-user quota (only if email known and a limit is actually set — null =
+  // illimité, même convention que max_uses)
+  if (customerEmail && pc.max_uses_per_user !== null && pc.max_uses_per_user > 0) {
     const { count } = await supabaseAdmin
       .from("reservations")
       .select("*", { count: "exact", head: true })

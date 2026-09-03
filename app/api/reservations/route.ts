@@ -41,11 +41,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Anti-harcèlement : empêche d'utiliser le formulaire pour spammer une
-    // même adresse e-mail depuis des IP différentes (3 réservations / jour).
+    // même adresse e-mail depuis des IP différentes (10 réservations / jour
+    // — assoupli le 2026-09-03, 3 bloquait trop vite un usage légitime
+    // répété, ex. plusieurs événements le même jour).
     const email = String(body.customer_email ?? "").trim().toLowerCase();
     const emailAllowed = await checkRateLimit(
       `email_submit_${email}`,
-      3,
+      10,
       24 * 60 * 60,
     );
     if (!emailAllowed) {

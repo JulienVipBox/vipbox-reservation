@@ -64,10 +64,12 @@ create table promo_codes (
   allowed_pr_slugs        text[],
   allowed_region_ids      integer[],
 
-  -- Quotas
+  -- Quotas (null = illimité, changé le 2026-09-03 : le défaut d'1/personne
+  -- n'était qu'une valeur pré-remplie du formulaire admin, pas un choix
+  -- métier délibéré — voir CONTEXT.md)
   max_uses                integer,
   uses_count              integer not null default 0,
-  max_uses_per_user       integer not null default 1,
+  max_uses_per_user       integer,
 
   -- Ciblage email (null = pas de ciblage)
   allowed_emails          text[],
