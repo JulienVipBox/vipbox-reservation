@@ -185,6 +185,32 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Lecture minimale par ID — utilisée par Paiement.tsx pour afficher le
+// montant réellement autoritaire (celui recalculé et stocké côté serveur à
+// la création de la réservation) plutôt que de le recalculer depuis le store
+// Zustand, qui peut être obsolète après un retour en arrière dans le tunnel
+// (ex. changement de date sans re-sélection du modèle → prix de saison
+// périmé). Seuls les champs nécessaires à cet affichage sont renvoyés, pas
+// les coordonnées client.
+export async function GET(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "ID manquant" }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("reservations")
+    .select("id, status, total_amount")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
+  }
+
+  return NextResponse.json(data);
+}
+
 // Champs modifiables via cette route publique : uniquement la référence de
 // paiement (utile avant redirection vers le prestataire). Tout le reste
 // (status, montants, coordonnées client...) ne doit passer que par un accès
