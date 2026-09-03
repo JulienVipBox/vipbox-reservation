@@ -41,7 +41,7 @@
 
 - 3 types : remise fixe €, option(s) offertes (0€), ou les deux
 - Validation réelle dans `lib/promo.ts` (`validatePromoCode()`, `getBestAutoPromoCode()`) — vérifie dates, quota global, quota par email, restriction géographique (PR/région)
-- **Revalidé côté serveur à l'insertion finale** (`app/api/reservations/route.ts`) — le serveur ne fait jamais confiance à la remise calculée côté client, il rappelle `validatePromoCode()` lui-même avant d'enregistrer la réservation. Un code devenu invalide entre l'affichage et la soumission est ignoré silencieusement plutôt que de faire échouer la réservation.
+- **Revalidé côté serveur à l'insertion finale** (`app/api/reservations/route.ts`) — le serveur ne fait jamais confiance à la remise calculée côté client, il rappelle `validatePromoCode()` lui-même avant d'enregistrer la réservation. Un code devenu invalide entre l'affichage et la soumission (ex. quota par e-mail, vérifiable seulement une fois l'e-mail connu) ne fait pas échouer la réservation, mais **le client en est désormais informé** (écran dédié dans `CoordonneesForm.tsx` avec le total corrigé, voir bug du 2026-09-03 plus bas) — plus un rejet totalement silencieux comme avant.
 - Store : `promoCode` (string), `promoEffect` ({ discountAmount, freeOptionIds[] })
 - Changer de modèle remet le code à zéro
 - Options offertes : badge "Offert" vert, non décochables
@@ -119,12 +119,25 @@ Package `onlinepayments-sdk-nodejs` installé (dépendance réelle du projet). F
 - ✅ **Bug de cache trouvé ET corrigé le 2026-09-03 : `/admin/reservations` (et `/admin/codes-promo`, même défaut) pouvait afficher des données périmées jusqu'au prochain déploiement.** Cause : ces pages sont des Server Components qui font un simple `supabaseAdmin.from(...).select(...)` sans lire aucune donnée dépendant de la requête (pas de `cookies()`/`searchParams`) — Next.js les traite alors comme statiques et les fige au moment du build/déploiement (le `Cache-Control: no-store` du middleware admin ne change rien, il ne concerne que la mise en cache navigateur, pas le rendu serveur). Symptôme observé : une réservation payée avec succès n'apparaissait pas dans `/admin/reservations` juste après un déploiement, alors qu'une réservation plus ancienne (créée avant ce déploiement) y était bien visible. Fix : `export const dynamic = "force-dynamic";` ajouté sur ces deux pages — même correctif déjà en place sur `/admin/disponibilites` depuis le 2026-07-16 (voir section "Blocage des disponibilités"), qui n'avait pas été répliqué sur les autres pages admin à l'époque. `/admin/emails` n'est pas concerné (Client Component, fetch au chargement, toujours à jour). **Vérifié après coup directement en base (Supabase) que la réservation existait bel et bien** (pas seulement dans l'affichage admin) — confirmation demandée par Julien après ce bug de cache, légitime vu le symptôme.
 - Double écriture CRM (`postToCrm()` dans `lib/crm.ts`, mapping complet et testé) : **toujours pas câblée** dans `payment-handler.ts` — exclue du périmètre à la demande explicite de Julien (2026-09), à faire dans un second temps
 
+### ⬜ Reste à faire (état au 2026-09-03)
+
+**Peut être fait dès maintenant, sans attendre la banque :**
+- Récupérer la clé webhook CAWL (`CAWL_WEBHOOK_KEY_ID`/`CAWL_WEBHOOK_SECRET_KEY`) dans le portail marchand *test* (déjà accessible) → Développeur → Webhooks. Pas bloquant pour un paiement (la page de retour est le chemin principal de confirmation), mais tant que ce n'est pas fait le webhook reste fail-closed (503) — aucun filet de sécurité si un client ferme l'onglet juste après avoir payé.
+- Vérifier que `BREVO_API_KEY` est bien dans Vercel → Environment Variables (Production) — soupçonné manquant lors du tout premier paiement réel (email non envoyé automatiquement, renvoyé manuellement depuis ce jour), **jamais reconfirmé depuis par un vrai paiement de bout en bout** (le test du 2026-09-03 sur les codes promo s'est arrêté avant l'étape Paiement).
+- Activer les vraies clés Turnstile pour le tunnel (`reservation.vip-box.fr`) : présentes en commentaire dans `.env.local` (créées mais jamais activées), le tunnel tourne encore avec les clés de test officielles Cloudflare (`1x0000...`/`1x0000...AA`, toujours "réussite" — donc anti-bot inactif en pratique). Décommenter + dupliquer dans Vercel avant la vraie mise en prod.
+- Décider du sort de `postToCrm()` (câblage dans `payment-handler.ts`, mapping déjà prêt) — actuellement hors périmètre à la demande de Julien, mais nécessaire avant la vraie mise en prod pour que les commandes tunnel remontent dans le CRM comme celles des autres canaux.
+
+**Zone grise, à trancher** : le paiement en 2x (mentionné dans le parcours original — CB complète *ou* 2x via Alma) n'a jamais été implémenté côté CAWL ; seul le paiement carte complet (Hosted Checkout Page) est codé aujourd'hui. À statuer : CAWL propose-t-il un 2x natif, ou faut-il un partenaire externe (Alma) comme ça aurait été le cas avec Stripe ?
+
+**En attente du retour de la banque (rien à anticiper côté code) :**
+- Signature du contrat CAWL définitif → bascule des identifiants preprod (`CAWL_HOST=payment.preprod.cawl-solutions.fr`, PSPID `VIPBOX` confirmé en préprod seulement) vers l'environnement de production, à reconfirmer à ce moment-là (même méthode de vérification empirique que pour le préprod).
+
 ## Emails transactionnels — ✅ implémenté et testé
 
 ### Infrastructure
 - Envoi via **Brevo API v3** (confirmé, pas "vraisemblablement") — `BREVO_API_KEY` en `.env.local`, domaine `vip-box.fr` vérifié dans Brevo
 - Expéditeur : `reservation@vip-box.fr` (nom affiché : VIPBOX)
-- Déclenchement prévu : webhook paiement → `handleSuccessfulPayment()` (`lib/payment-handler.ts`) → 2 emails en `Promise.allSettled` — **pas encore actif en pratique**, le webhook réel n'existe pas tant que le prestataire de paiement n'est pas choisi
+- Déclenchement : page de retour CAWL (chemin principal) ou webhook (filet de sécurité) → `handleSuccessfulPayment()` (`lib/payment-handler.ts`) → 2 emails en `Promise.allSettled` — **actif et testé en conditions réelles depuis le 2026-09-03** (voir section Paiement)
 - Toutes les valeurs utilisateur interpolées dans le HTML sont échappées (fonction `esc()` dans `lib/email.ts`) — pas de risque XSS-in-email
 
 ### Email client (`sendClientConfirmationEmail`)
@@ -245,14 +258,14 @@ Champ `materiel` : liste (séparée par virgule) des modèles proposés par ce P
 - `commercial` hardcodé à 595 pour toutes les commandes tunnel (indépendant du routage 539/795/669 utilisé côté formulaire de contact WP)
 - En cas d'échec écriture CRM : ne doit jamais bloquer le client (pas encore vérifié en conditions réelles puisque pas câblé)
 
-## Formulaire de contact WP (vip-box.fr/contact) — projet séparé, quasi terminé
+## Formulaire de contact WP (vip-box.fr/contact) — projet séparé, ✅ terminé et en prod
 
 Mu-plugin WordPress indépendant, hors du repo tunnel, remplace à terme l'ancien formulaire de Joris sur `/contact`. Détail complet dans la mémoire de session — résumé utile ici :
 - ⚠️ **Dossier local à jour : `C:\Users\Julien\OneDrive\Bureau\Claude Code\mu-plugins\vipbox-contact\`** (pas l'ancien `vipbox-contact-mu-plugin\`, qui traîne encore sur le Bureau mais n'est plus la référence — contenu identique au 2026-07-24, mais à vérifier à l'avenir avant de repartir de l'un ou l'autre)
 - Sécurité auditée et jugée solide (nonce CSRF, honeypot, Turnstile, rate-limit, échappement XSS, validation serveur) — rien à corriger côté code
 - Turnstile actif (clés créées par Julien), bug d'espacement du widget invisible corrigé (`margin: -30px` sur `.vipbox-turnstile-wrap` pour compenser la non-fusion des marges causée par `overflow:hidden`)
-- ✅ **`VIPBOX_CONTACT_TEST_MODE` passé à `false` le 2026-07-24** (restaure le vrai routage email équipe + rate-limiting + coupe les messages de debug) — modifié en local, **reste à re-déployer sur le serveur** (FTP ou équivalent) par Julien
-- ⬜ **Reste à faire côté WP-admin (Julien)** : basculer la vraie page `/contact` (repasser sur le template Elementor par défaut, ajouter le shortcode `[vipbox_contact]`) — actuellement encore l'ancien formulaire de Joris (vérifié en direct le 2026-07-24)
+- ✅ **`VIPBOX_CONTACT_TEST_MODE` passé à `false`, déployé sur le serveur** (restaure le vrai routage email équipe + rate-limiting + coupe les messages de debug)
+- ✅ **Bascule vers la vraie page `/contact` faite le 2026-08-20** (confirmé par Julien) — le nouveau formulaire est en prod, l'ancien formulaire de Joris n'est plus en ligne
 - ✅ **Bypass d'étape 1 par URL, pour Particulier ET Professionnel** (2026-07-24) : `?type=professionnel` ou `?type=particulier` sur l'URL de la page contact. Vocabulaire URL volontairement différent du vocabulaire interne du plugin (`'pro'`/`'particulier'`, utilisé partout dans `ajax.php`/`email.php`/`form.js`) — la traduction se fait uniquement dans `vipbox_contact_render_shortcode()` (`vipbox-contact.php`), rien d'autre à toucher. Le lien Pro existait déjà (`?type=pro` à l'origine) mais avec l'ancien vocabulaire — **`ProfileCards.tsx` mis à jour en conséquence** (`?type=professionnel`)
 - Version du plugin : 1.5.0
 
