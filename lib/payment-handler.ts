@@ -22,6 +22,15 @@ export async function handleSuccessfulPayment(
     throw new Error(`Reservation not found: ${supabaseReservationId}`);
   }
 
+  // Idempotence : le webhook et la page de retour client (app/reservation/
+  // paiement/retour) peuvent tous les deux appeler cette fonction pour la
+  // même réservation (le premier arrivé gagne). Sans ce garde-fou, un appel
+  // en double enverrait les 2 e-mails de confirmation deux fois.
+  if (r.status === "payé") {
+    console.log(`[payment-handler] Réservation ${supabaseReservationId} déjà traitée, appel ignoré.`);
+    return;
+  }
+
   // 2. Mettre à jour le statut
   await supabaseAdmin
     .from("reservations")

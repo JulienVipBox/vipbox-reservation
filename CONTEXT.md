@@ -88,20 +88,29 @@ Colonnes réelles : `id`, `code`, `discount_amount`, `free_option_ids` (array), 
   1. `POST /v2/{merchantId}/hostedcheckouts` (`merchantId` = `CAWL_PSPID`) avec `order.amountOfMoney.{currencyCode,amount}` (montant en **centimes**), `hostedCheckoutSpecificInput.{returnUrl,locale,sessionTimeout,allowedNumberOfPaymentAttempts}`
   2. Réponse : `hostedCheckoutId` + `redirectUrl` (valable 3h) → rediriger le client dessus
   3. Retour client sur `returnUrl` ; statut interrogeable via `GET /v2/{merchantId}/hostedcheckouts/{hostedCheckoutId}` (`statusOutput.statusCode`)
-  4. Webhook en complément (le client peut fermer l'onglet avant le retour) — signature à vérifier une fois la doc webhook consultée
+  4. Webhook en complément (le client peut fermer l'onglet avant le retour)
   5. `client.services.testConnection(merchantId)` (`GET /v2/{merchantId}/services/testconnection`) : vérif légère sans effet de bord, pratique pour tester la config sans créer de vraie session
 - Doc consultée : `docs.ecommerce.cawl-solutions.fr/fr/integration/basic-integration-methods/hosted-checkout-page` et `.../server-sdks/nodejs`
 - Variables d'env confirmées dans `.env.local` : `CAWL_API_KEY_ID`, `CAWL_SECRET_API_KEY`, `CAWL_PSPID`, `CAWL_HOST`
-- **Prêt à coder** : package + identifiants + flux tous confirmés, reste à écrire l'intégration réelle (étape Paiement, webhook, câblage `payment-handler.ts`)
+
+### ✅ Intégration codée et testée en conditions réelles (préprod) — 2026-09
+Package `onlinepayments-sdk-nodejs` installé (dépendance réelle du projet). Flux complet créé, testé de bout en bout côté serveur (création de session réelle contre l'API CAWL, `redirectUrl` obtenue, `stripe_payment_intent_id` bien enregistré, page de retour vérifiée en état "pending" avant paiement) :
+- `lib/cawl.ts` : `createCawlCheckout()` / `getCawlCheckoutResult()` — wrapper SDK
+- `app/api/cawl/create-checkout/route.ts` : crée la session (montant repris de la ligne Supabase déjà validée à la création de la réservation, jamais du client), stocke `hostedCheckoutId` dans `reservations.stripe_payment_intent_id` (**champ réutilisé tel quel** — pas de migration de schéma, nom trompeur mais volontaire pour rester dans le périmètre demandé)
+- `components/reservation/Paiement.tsx` : vrai bouton, crée la session puis redirige
+- `app/reservation/paiement/retour/page.tsx` : page de retour CAWL — confirmation **principale** (vérifie le statut réel auprès de CAWL avec nos identifiants serveur, pas besoin de signature webhook pour ce chemin) ; appelle `handleSuccessfulPayment()` si payé, affiche "en cours"/"échoué" sinon avec repli
+- `lib/payment-handler.ts` : garde-fou d'idempotence ajouté (`if (r.status === "payé") return;`) — nécessaire car webhook + page de retour peuvent tous les deux appeler `handleSuccessfulPayment()` pour la même réservation
+- `app/api/webhooks/payment/route.ts` : implémentation réelle (parsing événement CAWL, retrouve la réservation via `hostedCheckoutId`, appelle `handleSuccessfulPayment()`) — **filet de sécurité, pas le chemin principal**. Vérification de signature via `sdk.webhooks` (SDK officiel) — **fail closed** tant que `CAWL_WEBHOOK_KEY_ID`/`CAWL_WEBHOOK_SECRET_KEY` ne sont pas renseignés (absents de `.env.local` au 2026-09, à récupérer par Julien dans le portail marchand → Développeur → Webhooks) : la route rejette (503) plutôt que de faire confiance à un événement non vérifié
+- ⚠️ Mapping `paymentStatusCategory` (`SUCCESSFUL`/`REJECTED`/etc.) basé sur les conventions Worldline standard, **seul l'état "avant tout paiement" (`IN_PROGRESS`) a été vérifié empiriquement** — à confirmer avec un vrai paiement de test avant la mise en prod définitive
+- **Cartes de test CAWL** (préprod uniquement) : Visa `4330264936344675`, Mastercard `5137009801943438`, Amex `371449635311004` — date d'expiration future quelconque, CVV 3-4 chiffres quelconques ; pour simuler un refus, utiliser un montant de 13,02 € avec l'une de ces cartes
 
 ### Variables d'env Stripe (si retenu)
 - `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 
 ### État du code
-- Étape 8 (Paiement) : placeholder (`Paiement.tsx`), rien n'est réellement encaissé
-- `app/api/webhooks/payment/route.ts` : stub, signature à implémenter selon le prestataire retenu — **ne peut pas être fait avant la décision**, le mécanisme de vérification diffère entre les deux prestataires
-- `lib/payment-handler.ts` : orchestrateur post-paiement déjà écrit (`handleSuccessfulPayment()` — update Supabase, création/liaison compte mon-espace, envoi des 2 emails), mais jamais déclenché en conditions réelles puisqu'aucun webhook ne l'appelle encore
-- Double écriture CRM (`postToCrm()` dans `lib/crm.ts`, mapping complet et testé) : pas encore câblée dans `payment-handler.ts`, prévu dès que le paiement est intégré
+- Étape 8 (Paiement) : ✅ codée (CAWL), testée côté serveur — **reste à tester un vrai paiement de bout en bout dans le navigateur** (carte de test ci-dessus) et à récupérer la clé webhook
+- `lib/payment-handler.ts` : orchestrateur post-paiement (`handleSuccessfulPayment()` — update Supabase, création/liaison compte mon-espace, envoi des 2 emails) — **déclenché en conditions réelles pour la première fois** via la page de retour paiement
+- Double écriture CRM (`postToCrm()` dans `lib/crm.ts`, mapping complet et testé) : **toujours pas câblée** dans `payment-handler.ts` — exclue du périmètre à la demande explicite de Julien (2026-09), à faire dans un second temps
 
 ## Emails transactionnels — ✅ implémenté et testé
 

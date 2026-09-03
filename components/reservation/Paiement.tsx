@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/lib/store";
 
@@ -8,6 +8,8 @@ export function Paiement() {
   const router = useRouter();
   const { eventDate, pickupPoint, model, customer, reservationId, options, promoEffect } =
     useReservationStore();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!eventDate) { router.replace("/reservation/date"); return; }
@@ -23,6 +25,33 @@ export function Paiement() {
   const optionsTotal = options.reduce((s, o) => s + o.price, 0);
   const total = Math.max(0, model.price + optionsTotal - discount);
 
+  // Crée la session de paiement CAWL côté serveur puis redirige le client
+  // vers la page de paiement hébergée — voir lib/cawl.ts pour le détail.
+  const handlePay = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/cawl/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reservationId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.redirectUrl) {
+        setError(data.error ?? "Impossible de démarrer le paiement. Merci de réessayer.");
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = data.redirectUrl;
+    } catch {
+      setError("Impossible de démarrer le paiement. Merci de réessayer.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-md mx-auto">
       {/* Récap montant */}
@@ -31,11 +60,19 @@ export function Paiement() {
         <span className="font-bold text-2xl text-white">{total} €</span>
       </div>
 
-      {/* Placeholder Stripe */}
-      <div className="rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center text-gray-400 space-y-2">
-        <p className="font-medium">Formulaire de paiement Stripe</p>
-        <p className="text-sm">À intégrer (Stripe Elements)</p>
-      </div>
+      {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+      <button
+        onClick={handlePay}
+        disabled={loading}
+        className="w-full rounded-[5px] bg-gold px-8 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? "Redirection en cours…" : "Payer par carte bancaire"}
+      </button>
+
+      <p className="text-xs text-gray-400 text-center">
+        Paiement 100&nbsp;% sécurisé — vous allez être redirigé vers notre prestataire bancaire.
+      </p>
     </div>
   );
 }
