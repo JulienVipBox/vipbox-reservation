@@ -435,10 +435,133 @@ Premier pull réel (2025-05 à 2026-08, mensuel, tout le site) :
 | 2026-07 | 4190 | 148 988 | 2,81% | 12,1 |
 | 2026-08 | 4070 | 147 218 | 2,76% | 15,6 |
 
-**Observation à creuser, pas encore analysée** : le pic d'impressions de
-2025-09 (1,3M, CTR 0,40%) tranche nettement avec le reste — à vérifier si
-c'est un artefact (ex. indexation temporaire sur des requêtes hors-sujet) ou
-un vrai signal, avant de l'utiliser tel quel dans une comparaison.
+### ⚠️ Pic d'impressions de septembre 2025 expliqué : homonyme "VIPBox", site pirate de streaming sportif
+
+Le pic (1,3M d'impressions, CTR 0,40%) vient à 94% de la requête exacte
+`vipbox` (883k impressions, 1323 clics — CTR 0,15%) et de sa variante
+`vip box` (246k impressions). **"VIPBox"/"VIPBoxTV" est aussi le nom d'un
+site pirate de streaming sportif bien connu, sans aucun rapport avec
+VIPBOX.** Position moyenne de vip-box.fr sur sa propre requête de marque :
+**8-9, jamais en tête**, y compris en dehors du pic — signe que Google
+mélange les deux entités sur cette requête, et que l'écrasante majorité des
+chercheurs de "vipbox" veulent le site de streaming (CTR proche de 0 le
+confirme).
+
+Suivi mensuel de la requête exacte `vipbox` (impressions) : 104k (mai 25) →
+197k (juin) → 64k (juil) → **419k (août) → 883k (sept, pic) → 358k (oct)**
+→ 85k (nov) → retour à un niveau bas (30-90k) de déc. 25 à mars 26, avant un
+second pic modéré en avril-mai 26 (185k/140k, cette fois avec un CTR bien
+meilleur — 1,1 à 1,8%, donc probablement de vrais chercheurs de la marque
+cette fois). **Chronologie compatible avec la reprise des saisons sportives
+européennes (foot, NFL) fin août-septembre** — hypothèse la plus probable,
+non vérifiable formellement depuis GSC seul.
+
+**Conséquence pour toute comparaison d'impressions/clics dans le temps** :
+exclure les requêtes de marque (regex `vip ?box|vio ?box|bipbox|cipbox|vipvox|vip ox`)
+en plus du spam de juin, sous peine de comparer des périodes à des degrés de
+contamination très différents. Le bruit de marque n'est pas ponctuel comme le
+spam : il **s'étale d'août 2025 à février-mars 2026**, ce qui déborde
+directement sur la fenêtre pré-refonte (12 fév-19 mai 2026) de la comparaison
+ci-dessous — **69% des impressions de cette fenêtre sont des requêtes de
+marque contaminées**, contre 40% pour la fenêtre post-refonte (déjà en net
+reflux à cette date). Une comparaison brute pré/post confond donc en bonne
+partie "la contamination homonyme qui s'éteint" avec un vrai changement de
+performance SEO.
+
+### Croisement refonte, version doublement nettoyée (spam + marque) — la plus fiable à ce jour
+
+Mêmes 3 fenêtres de 97 jours, cette fois hors spam **et** hors requêtes de
+marque contaminées (méthode : somme exacte des lignes `date`×`query`
+matchant chaque regex, soustraite du total brut — jamais `excludingRegex`
+en aveugle, voir piège documenté plus haut) :
+
+| | Pré-refonte | Post-refonte | N-1 | Post vs Pré | Post vs N-1 |
+|---|---|---|---|---|---|
+| GSC clics | 6 870 | 6 234 | 8 646 | -9,3% | -27,9% |
+| GSC impressions | 440 333 | 312 478 | 544 317 | -29,0% | -42,6% |
+| GSC CTR | 1,56% | 2,00% | 1,59% | +0,44 pt | +0,41 pt |
+| GSC position moy. | 15,9 | 14,9 | 21,4 | -1,0 (amélioration) | **-6,5 (nette amélioration)** |
+
+**Le tableau "corrigé du spam" juste au-dessus est donc lui-même à
+considérer comme dépassé** — il ne retirait que le spam, pas le bruit de
+marque, qui pesait bien plus lourd (jusqu'à 69% des impressions pré-refonte).
+Une fois les deux retirés, l'histoire change à nouveau, et cette fois plutôt
+dans le bon sens : clics quasi stables pré/post (-9,3%, plus la petite baisse
+franche vue précédemment), position moyenne **nettement meilleure qu'il y a
+un an** (21,4 → 14,9, -6,5 points), CTR toujours meilleur. Le volume reste en
+repli (impressions -29%/-43%), mais nettement moins sévère que les -70%
+qu'affichait la vue brute. **Nuance à garder** : cette double exclusion est
+une estimation raisonnable, pas une science exacte — une partie du trafic
+"marque" exclu est sans doute de vrais internautes cherchant VIPBOX (le CTR
+extrêmement bas suggère que c'est une petite minorité, mais pas zéro).
+
+### Saisonnalité des demandes entrantes (table `Prospect`, 7 ans) — indispensable avant tout avant/après
+
+Demande de Julien (3 sept. 2026) : avant d'interpréter un avant/après
+refonte qui compare des mois calendaires différents (ex. avril vs juillet),
+isoler la forme saisonnière du volume de demandes de la tendance de fond
+(déjà documentée en déclin depuis l'exercice 2022). Calculé sur `Prospect`
+uniquement (pas `prestations` : `date_reservation` est décalée de plusieurs
+semaines à plusieurs mois par rapport à la demande réelle), toutes
+provenances confondues (échantillon plus robuste), part de chaque mois
+calendaire dans le total de son année, moyennée sur plusieurs années
+(`scripts/prospect-seasonality.js`, nouveau) :
+
+| Mois | Indice (7 ans, 2019-2025) | Indice (5 ans, 2021-2025, plus robuste) |
+|---|---|---|
+| Janvier | 154 | 128 |
+| Février | 108 | 102 |
+| Mars | 96 | 98 |
+| Avril | 90 | 94 |
+| Mai | 94 | 104 |
+| Juin | 96 | 97 |
+| Juillet | 94 | 97 |
+| Août | 85 | 87 |
+| Septembre | 119 | 122 |
+| Octobre | 108 | 113 |
+| Novembre | 108 | 104 |
+| Décembre | 48 | 53 |
+
+(Indice 100 = part moyenne d'un mois si le volume était parfaitement plat
+sur l'année, soit 8,33%.)
+
+**⚠️ 2019 et 2020 tirent l'indice 7 ans vers le haut en janvier** (24,3% de
+part sur la seule année 2020, largement au-dessus de toutes les autres
+années — probablement un artefact des débuts du CRM, pas un vrai signal) :
+**préférer l'indice 5 ans (2021-2025)** comme référence, le 7 ans est
+indiqué pour mémoire/historique.
+
+**Lecture** : **janvier est de loin le mois le plus fort** (les fiançailles
+de Noël déclenchent une vague de recherche de prestataires dès le nouvel an
+— phénomène "engagement season" bien connu du secteur mariage), suivi de
+septembre-octobre (rentrée). **Décembre est le mois le plus faible, de
+loin** (indice 48-53, presque 2× sous la moyenne). Le printemps/été
+(mars-août), période où les évènements ont pourtant lieu, est **dans la
+moyenne basse à légèrement sous la moyenne** pour les demandes — logique,
+les demandes pour un évènement d'été arrivent en amont, pas au moment de
+l'évènement.
+
+**Application à la comparaison refonte (indice 5 ans, pondéré par nombre de
+jours de chaque mois dans chaque fenêtre)** : fenêtre pré-refonte (12
+fév-19 mai) ≈ indice 99 ; fenêtre post-refonte (20 mai-24 août) ≈ indice 95.
+Écart saisonnier attendu entre les deux fenêtres : **-3,3%, pas plus** — la
+refonte n'a pas eu la malchance de tomber sur un contraste saisonnier
+brutal, les deux fenêtres sont dans un creux comparable. Donc sur la baisse
+brute pré/post déjà mesurée :
+- Demandes canal site (-13,6% brut) → résiduel hors saisonnalité **≈ -10,6%**.
+- Réservations en ligne (-21,4% brut) → résiduel hors saisonnalité **≈ -18,7%**.
+
+Les baisses restent réelles une fois la saisonnalité neutralisée, mais un
+peu moins marquées que le chiffre brut. **Les comparaisons N-1 (même
+fenêtre calendaire, année précédente) n'ont, elles, pas besoin de cet
+ajustement** : comparer le 20 mai-24 août 2026 au 20 mai-24 août 2025
+neutralise déjà la saisonnalité par construction (mêmes mois des deux
+côtés) — c'est uniquement le comparatif pré/post **à l'intérieur de la même
+année** qui en avait besoin.
+
+**Non fait à ce stade** : appliquer cette même correction saisonnière à la
+série mensuelle GSC (16 mois) et à la table mensuelle complète plus bas —
+utile si on veut aller plus loin, pas fait aujourd'hui faute de temps.
 
 ### ⚠️ Piratage SEO confirmé et résolu — 13 juin 2026, à toujours exclure des analyses GSC
 
