@@ -495,6 +495,49 @@ une estimation raisonnable, pas une science exacte — une partie du trafic
 "marque" exclu est sans doute de vrais internautes cherchant VIPBOX (le CTR
 extrêmement bas suggère que c'est une petite minorité, mais pas zéro).
 
+### Vue mensuelle fine (nettoyée) autour de la refonte — pas d'inflection nette au 20 mai
+
+Demande de Julien (3 sept. 2026) : le bloc "97 jours" ci-dessus est trop
+large pour un effet SEO forcément progressif — segmenter plus finement.
+`scripts/gsc-monthly-clean.js` (nouveau) applique la même méthode de double
+exclusion (spam + marque) mois calendaire par mois calendaire :
+
+| Mois | Clics nets | Impressions nettes | CTR net | Position nette |
+|---|---|---|---|---|
+| 2025-12 | 1228 | 113 018 | 1,09% | 18,0 |
+| 2026-01 | 2175 | 186 313 | 1,17% | 22,3 |
+| 2026-02 | 1994 | 182 129 | 1,09% | 21,2 |
+| 2026-03 | 2184 | 135 260 | 1,61% | 14,1 |
+| 2026-04 | 2129 | 126 491 | 1,68% | 14,3 |
+| 2026-05 | 2284 | 118 869 | 1,92% | 13,9 |
+| 2026-06 | 2269 | 98 949 | 2,29% | 12,6 |
+| 2026-07 | 1730 | 90 353 | 1,91% | 14,6 |
+| 2026-08 | 2020 | 110 772 | 1,82% | 18,1 |
+
+**Constat important, qui nuance le tableau "pré/post" ci-dessus** : à ce
+niveau de détail, **il n'y a pas de rupture nette au 20 mai**. La grosse
+amélioration de position (21,2 → 14,1) et de CTR (1,09% → 1,61%) a lieu
+entre **février et mars 2026 — près de trois mois avant la refonte**, donc
+pas imputable à celle-ci. Le meilleur mois toutes métriques confondues est
+juin (juste après la refonte), mais août revient quasiment au niveau
+pré-refonte (position 18,1, proche des 21,2 de février). Les impressions,
+elles, déclinent en continu de janvier à juillet, sans à-coup identifiable
+au moment de la refonte — cohérent avec une contamination de marque encore
+partiellement active en janvier-février (les régler complètement demande un
+filtre plus permissif que celui utilisé ici, pas fait à ce stade) plutôt
+qu'avec un effet refonte. **Conclusion : sur les données actuelles, aucun
+effet spécifiquement imputable à la refonte n'est démontrable côté SEO** —
+ni positif ni négatif — le signal qui existe (amélioration de position/CTR)
+précède la refonte.
+
+**Recherche d'anomalies GSC élargie** (à la demande de Julien) : scan
+statistique des 488 jours de la fenêtre de 16 mois (repérage des jours à
+plus de 3 écarts-types de la moyenne, clics et impressions). Résultat : rien
+au-delà des deux épisodes déjà identifiés — un seul jour supplémentaire
+détecté (30 mai 2026), qui n'est qu'un petit écho résiduel de l'homonyme de
+marque, déjà couvert par le filtre ci-dessus. Pas de troisième contamination
+cachée.
+
 ### Saisonnalité des demandes entrantes (table `Prospect`, 7 ans) — indispensable avant tout avant/après
 
 Demande de Julien (3 sept. 2026) : avant d'interpréter un avant/après
@@ -525,43 +568,88 @@ calendaire dans le total de son année, moyennée sur plusieurs années
 (Indice 100 = part moyenne d'un mois si le volume était parfaitement plat
 sur l'année, soit 8,33%.)
 
-**⚠️ 2019 et 2020 tirent l'indice 7 ans vers le haut en janvier** (24,3% de
-part sur la seule année 2020, largement au-dessus de toutes les autres
-années — probablement un artefact des débuts du CRM, pas un vrai signal) :
-**préférer l'indice 5 ans (2021-2025)** comme référence, le 7 ans est
-indiqué pour mémoire/historique.
+**⚠️ Correction du 3 sept. 2026 : 2020 et surtout 2021 sont Covid, pas un
+"artefact CRM"** — hypothèse initiale erronée, corrigée après remarque de
+Julien. Le détail mensuel montre un mécanisme précis, pas juste du bruit :
 
-**Lecture** : **janvier est de loin le mois le plus fort** (les fiançailles
-de Noël déclenchent une vague de recherche de prestataires dès le nouvel an
-— phénomène "engagement season" bien connu du secteur mariage), suivi de
-septembre-octobre (rentrée). **Décembre est le mois le plus faible, de
-loin** (indice 48-53, presque 2× sous la moyenne). Le printemps/été
-(mars-août), période où les évènements ont pourtant lieu, est **dans la
-moyenne basse à légèrement sous la moyenne** pour les demandes — logique,
-les demandes pour un évènement d'été arrivent en amont, pas au moment de
-l'évènement.
+- **2020** : janvier normal (2088, pré-Covid, France pas encore confinée),
+  puis effondrement mars-décembre (1er confinement 17 mars, 2e confinement
+  30 oct-15 déc) — total annuel 8593, très inférieur aux autres années
+  (~10 500-14 000). Mécaniquement, la part de janvier dans ce total rétréci
+  explose (24,3%) **sans que janvier lui-même n'ait rien d'exceptionnel** —
+  c'est le dénominateur (reste de l'année, écrasé par les confinements) qui
+  fausse le ratio.
+- **2021** : toujours très bas jusqu'en avril (3e confinement 3 avril-3 mai,
+  couvre-feu une bonne partie du 1er semestre) — janv-avr entre 368 et 466,
+  moitié d'une année normale — puis **rattrapage net** dès la levée des
+  restrictions (mai-août 734-809) et **pic de septembre-octobre
+  anormalement haut** (1261/1101, mariages reportés qui se re-bookent en
+  masse à la rentrée 2021). 2021 est donc doublement faussé : creux
+  artificiel en début d'année, sur-représentation en fin d'année — dans le
+  mauvais sens pour une comparaison "quel mois est fort/faible" normale.
 
-**Application à la comparaison refonte (indice 5 ans, pondéré par nombre de
-jours de chaque mois dans chaque fenêtre)** : fenêtre pré-refonte (12
-fév-19 mai) ≈ indice 99 ; fenêtre post-refonte (20 mai-24 août) ≈ indice 95.
-Écart saisonnier attendu entre les deux fenêtres : **-3,3%, pas plus** — la
-refonte n'a pas eu la malchance de tomber sur un contraste saisonnier
-brutal, les deux fenêtres sont dans un creux comparable. Donc sur la baisse
-brute pré/post déjà mesurée :
-- Demandes canal site (-13,6% brut) → résiduel hors saisonnalité **≈ -10,6%**.
-- Réservations en ligne (-21,4% brut) → résiduel hors saisonnalité **≈ -18,7%**.
+**Référence retenue : indice sur 2022-2025 (4 années post-Covid "propres"),
+pas 2021-2025.** Impact concret d'avoir inclus 2021 par erreur au premier
+passage : ça gonflait l'indice de septembre-octobre par la contamination du
+rattrapage Covid, et sous-estimait le contraste saisonnier réel entre le
+début et la fin du printemps.
 
-Les baisses restent réelles une fois la saisonnalité neutralisée, mais un
-peu moins marquées que le chiffre brut. **Les comparaisons N-1 (même
-fenêtre calendaire, année précédente) n'ont, elles, pas besoin de cet
-ajustement** : comparer le 20 mai-24 août 2026 au 20 mai-24 août 2025
-neutralise déjà la saisonnalité par construction (mêmes mois des deux
-côtés) — c'est uniquement le comparatif pré/post **à l'intérieur de la même
-année** qui en avait besoin.
+| Mois | Indice 7 ans (2019-2025, brut, indicatif) | Indice 4 ans (2022-2025, retenu) |
+|---|---|---|
+| Janvier | 154 | 144 |
+| Février | 108 | 115 |
+| Mars | 96 | 107 |
+| Avril | 90 | 101 |
+| Mai | 94 | 105 |
+| Juin | 96 | 95 |
+| Juillet | 94 | 93 |
+| Août | 85 | 83 |
+| Septembre | 119 | 109 |
+| Octobre | 108 | 103 |
+| Novembre | 108 | 94 |
+| Décembre | 48 | 51 |
+
+**Lecture** : **janvier est de loin le mois le plus fort** ("engagement
+season" post-Noël, confirmé aussi sur l'indice propre), suivi de
+septembre-octobre. **Décembre est le mois le plus faible, de loin**. Le
+printemps (mars-mai) est en réalité **plus proche de la moyenne, voire
+légèrement au-dessus**, une fois 2021 retiré — contrairement à la première
+lecture qui le donnait nettement sous la moyenne (biais introduit par le
+creux artificiel de mars-mai 2021).
+
+**⚠️ Limite à ne pas perdre de vue : N=4 années seulement, et c'est
+instable.** Test de sensibilité (retirer une année à la fois parmi
+2022-2025) sur l'écart saisonnier attendu entre la fenêtre pré-refonte (12
+fév-19 mai) et post-refonte (20 mai-24 août) : **-9,6% à -18,5%** selon
+l'année retirée (vs -12,7% avec les 4 années). C'est une fourchette large —
+l'indice se stabilisera avec plus d'années post-Covid disponibles, pas
+avant.
+
+**Application à la comparaison refonte** (indice 4 ans, pondéré par nombre
+de jours de chaque mois dans chaque fenêtre) : effet saisonnier attendu
+post/pré **≈ -12,7%** (fourchette -9,6% à -18,5% selon la sensibilité
+ci-dessus) — **beaucoup plus marqué que l'estimation précédente (-3,3%,
+calculée par erreur avec 2021 inclus)**. Conséquence directe sur la lecture
+des baisses brutes pré/post :
+
+- **Demandes canal site (-13,6% brut)** → résiduel hors saisonnalité
+  **entre +6% et -4%** selon l'année de référence retenue — **la baisse
+  observée n'est plus distinguable d'une simple variation saisonnière
+  normale.** C'est un changement de conclusion par rapport à la version
+  précédente de ce document.
+- **Réservations en ligne (-21,4% brut)** → résiduel hors saisonnalité
+  **entre -3,6% et -13,1%** — reste négatif dans tous les cas testés, donc
+  une vraie baisse subsiste probablement, mais son ampleur exacte est
+  incertaine.
+
+Les comparaisons **N-1** (même fenêtre calendaire, année précédente)
+continuent de ne pas nécessiter cet ajustement — la saisonnalité s'annule
+déjà par construction (mêmes mois des deux côtés).
 
 **Non fait à ce stade** : appliquer cette même correction saisonnière à la
-série mensuelle GSC (16 mois) et à la table mensuelle complète plus bas —
-utile si on veut aller plus loin, pas fait aujourd'hui faute de temps.
+série mensuelle GSC (16 mois) et à la table mensuelle complète plus bas ; se
+resynchroniser sur cet indice une fois 2026 devenu une année complète
+utilisable (portera le N propre à 5).
 
 ### ⚠️ Piratage SEO confirmé et résolu — 13 juin 2026, à toujours exclure des analyses GSC
 
