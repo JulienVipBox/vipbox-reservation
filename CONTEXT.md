@@ -60,19 +60,27 @@ Colonnes réelles : `id`, `code`, `discount_amount`, `free_option_ids` (array), 
 ### Gestion
 - Interface admin `/admin/codes-promo` (liste, création, activer/désactiver), protégée par l'auth cookie HMAC-SHA256
 
-## Paiement — ⬜ toujours en attente (ne pas coder avant validation)
+## Paiement — 🔶 CAWL en cours de mise en place, environnement de test accessible dès maintenant
 
-### Choix en attente
+### Choix — CAWL très probable, réponse du CA reçue (2026-08-31)
 - **Option A — Stripe** : compte déjà client VIPBOX, ~1,5%+0,25€/transaction, 2x via Alma probable
-- **Option B — Crédit Agricole CAWL** : produit joint-venture CA+Worldline (2024), distinct de l'ancien "E-transactions" utilisé sur vipboxbooking.com/photoshaker.com — mail envoyé au Chargé d'Affaires CA le 2026-07-02 (tarifs, 2x natif ?, accès preprod), réponse toujours attendue
-- Architecture envisagée si CAWL retenu : Hosted Checkout Page, SDK `@worldline-solutions/sdk-nodejs` côté serveur, env preprod gratuite sur `signup.preprod.cawl-solutions.fr`
+- **Option B — Crédit Agricole CAWL** : mail envoyé au Chargé d'Affaires CA le 2026-07-02, **réponse reçue le 2026-08-31** (Pascal MICHAUX, Analyste Expert Flux, CA Provence Côte d'Azur — tél. 04 89 32 32 32 choix 3). Fiche de renseignements retournée par Julien le même jour (dirigeant renseigné : **Guillaume Serfaty**, pas Julien — contact technique/interlocuteur reste Julien ; URL boutique : `reservation.vip-box.fr` ; solution technique : Next.js ; offre choisie : **Par abonnement**)
+- Tarifs confirmés (`TARIFICATION.pdf`) :
+  - **À l'usage** : 1,2 % + 0,20 €/transaction (mini perception 10 €/mois), pas d'abonnement — adapté aux volumes < 7 500 €/mois
+  - **Par abonnement** (recommandé, et cohérent avec le volume VIPBOX ~650 k€/an ≈ 54 k€/mois, largement au-dessus du seuil) : 0,8 % + 0,20 €/transaction + 29 € HT/mois — moins cher par transaction que Stripe (~1,5 %+0,25 €) au-delà d'un faible volume
+- Compte pro CA requis depuis 2 ans minimum — déjà le cas (RIB fourni : SARL DREAMAKERS, agence C.A. Antibes Pro, IBAN `FR76 1910 6006 0243 6431 5800 185`, BIC `AGRIFRPP891`)
 - CGV à accepter à l'étape Paiement
+
+### ✅ Environnement de test accessible dès maintenant, sans attendre la signature (vérifié 2026-08-31)
+- Inscription gratuite : **`https://signup.preprod.cawl-solutions.fr/`** — une simple adresse email suffit, ni SIRET ni contrat signé nécessaires
+- Une fois le compte créé : portail de test (`https://portail.preprod.cawl-solutions.fr/`), explorateur d'API (`https://explorer.ecommerce.cawl-solutions.fr/`), documentation complète (`https://docs.ecommerce.cawl-solutions.fr/fr/`)
+- **SDK Node.js confirmé disponible** côté serveur (cohérent avec la stack Next.js), ainsi que PHP/Java/.NET/Python/Ruby ; SDK client JS/Android/Swift/Flutter/React Native si besoin plus tard
+- **Conclusion pratique : l'intégration technique peut commencer dès que Julien a créé le compte test**, en parallèle du dossier commercial — pas besoin d'attendre la signature ni la date cible de début septembre
+- Architecture envisagée : Hosted Checkout Page, SDK CAWL côté serveur (route API Next.js)
+- Noms exacts des identifiants d'API (clé, secret, ID marchand) **pas encore confirmés** — à vérifier une fois le compte test créé et le portail/l'explorateur d'API accessibles, ne pas se fier aux noms `CAWL_API_KEY`/`CAWL_API_SECRET`/`CAWL_PSPID` notés dans une version précédente de ce fichier, c'était une supposition non vérifiée
 
 ### Variables d'env Stripe (si retenu)
 - `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
-
-### Variables d'env CAWL (si retenu)
-- `CAWL_API_KEY`, `CAWL_API_SECRET`, `CAWL_PSPID`
 
 ### État du code
 - Étape 8 (Paiement) : placeholder (`Paiement.tsx`), rien n'est réellement encaissé
