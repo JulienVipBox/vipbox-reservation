@@ -723,10 +723,24 @@ référence :
 
 Août est statistiquement le vrai signal (écart-type historique ~4,5pt sur
 3 ans très serrés — la rupture 2026 sort largement de cette bande), mais
-**~60% de la hausse brute vient du nouveau canal "Site VIP BOX" (fiches
-manuelles, actif depuis le 13 août)** : en isolant le seul formulaire
-classique, août 2026 est à **+8,6% YoY** (198→215), toujours une rupture
-de tendance mais bien plus modeste que le +21% brut. **Conclusion :**
+**~60% de la hausse brute vient de l'étiquette `Provenance = "Site VIP BOX
+- demande entrante"`**, apparue le 13 août 2026 et qui n'existe donc
+mécaniquement pas dans la base 2025 de comparaison — **⚠️ précision
+importante (pas le nouveau formulaire de contact du 24 juillet, sans
+rapport)** : vérifié sur les 26 fiches concernées à ce jour, il s'agit
+d'un lot **hétérogène**, pas d'un "canal" au sens propre — un mélange de
+fiches vraiment reconstituées à la main depuis des mails directs
+(info@/reservation@/mike@, transférées par Emma ou Mike), une commande
+WooCommerce classée par erreur comme "demande", un lead du site partenaire
+vip-box.lu, un lead d'une agence via paris-photobooth.com, **et 7 fiches
+du 18 août qui sont bien de vraies soumissions du formulaire vip-box.fr**,
+importées via un "récapitulatif" (digest mail) plutôt qu'en temps réel. En
+isolant le seul `Provenance = "formulaires de contact"` (comparable tel
+quel à 2025), août 2026 est à **+8,6% YoY** (198→215), toujours une
+rupture de tendance mais bien plus modeste que le +21% brut — le reste de
+l'écart est un artefact de périmètre de comptage (une étiquette qui
+n'existait pas en 2025), pas une vraie accélération de la demande.
+**Conclusion :**
 mai et juillet se dégradent plus vite que la tendance établie, juin est
 dans la norme, août casse la tendance (à moitié artefact de mesure) — pas
 de signal cohérent sur juin-août pris ensemble, cohérent avec l'absence
@@ -758,14 +772,37 @@ GSC pour cette raison).
 | Angers | 10→3 | 64→46 | 4244→3250 | 14,3→12,3 |
 | Quimper | 12→13 | 86→91 | 3568→2378 | 12,0→10,1 |
 
-**Trouvaille principale : Lyon–Saint-Priest et Nice–Cannes n'avaient
-strictement aucune page indexée avant la refonte** (vérifié : zéro
-impression sur toute URL contenant le slug, même sans le préfixe
-`location-photobooth-`) **et apparaissent après avec un volume déjà notable
-et une position correcte (14-17)**. C'est un vrai effet local positif et
-directement attribuable à la refonte — contrairement au signal site-wide
-qui reste ambigu. Pas vérifié si d'autres PR sont dans ce cas au-delà de
-ces 9 (à faire).
+**⚠️ Correction du 3 sept. 2026, suite à la remarque de Julien** : la
+lecture initiale ("Lyon–Saint-Priest et Nice–Cannes = pages neuves, effet
+local positif") **était fausse**. Vérifié via la Wayback Machine
+(`web.archive.org/cdx`) puis confirmé sur GSC : ce sont des **renommages
+d'URL**, pas des pages neuves — `/location-photobooth-nice/` existait
+(56 660 impressions / 230 clics sur les 12,5 mois précédents, position
+21,4) et redirige en 301 vers `/location-photobooth-nice-cannes/` depuis
+la refonte ; même chose pour `/location-photobooth-lyon/` (33 793 impr. /
+200 clics, position 21,7) → 301 vers `/location-photobooth-lyon-saint-priest/`.
+Les 301 sont bien en place (vérifié), donc pas d'erreur technique de
+migration — mais **le volume post-refonte de ces deux PR (4414 et 7748
+impressions sur 97 jours, ≈1400-2400/mois) reste en repli par rapport à
+leur niveau pré-refonte (≈2700-4500/mois)** : la nouvelle URL n'a pas
+encore totalement récupéré l'autorité de l'ancienne — un creux de
+migration temporaire attendu, pas un gain, et pas franchement une perte
+définitive non plus (trop tôt pour trancher).
+
+**Piège méthodologique à retenir** : mon test initial ("aucune page
+contenant le slug avant la refonte") ne cherchait que le *nouveau* slug
+(`nice-cannes`, `lyon-saint-priest`) et quelques variantes géographiques
+proches (sophia, antipolis, cannes, grasse, antibes, mougins) — pas
+l'ancien slug plus générique (`nice`, `lyon`) qui aurait immédiatement
+révélé le renommage. **Avant de conclure "page inexistante avant X" sur un
+site qui vient d'être refait, toujours vérifier une éventuelle redirection
+303/301 de l'URL courante plutôt que de s'arrêter à une recherche GSC sur
+le slug actuel.** Les 7 autres PR de l'échantillon ont un slug inchangé
+(vérifié : trafic pré-refonte présent sous leur slug actuel dans les 9
+lignes du tableau ci-dessus), donc comparables tels quels — seuls
+Lyon-Saint-Priest et Nice-Cannes nécessitaient cette vérification
+supplémentaire, pas fait ailleurs sur les ~140 PR du site (à généraliser
+si on étend l'échantillon).
 
 **⚠️ Non fait : volet réservations en ligne (`cel`) par PR.** La table CRM
 `prestations` renvoie une `PDOException` sur toute requête **filtrée**
